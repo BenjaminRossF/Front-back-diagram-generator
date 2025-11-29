@@ -12,8 +12,11 @@ import EntityBox from './EntityBox';
 import ConnectionArrow from './ConnectionArrow';
 import Toolbar from './Toolbar';
 
+let idCounter = 0;
+
 function generateId(): string {
-  return Math.random().toString(36).substring(2, 11);
+  idCounter += 1;
+  return `entity-${Date.now()}-${idCounter}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
 const INITIAL_ENTITIES: Entity[] = [
