@@ -3,6 +3,14 @@
 import { Message, Lifeline, LIFELINE_HEADER_WIDTH, LIFELINE_HEADER_HEIGHT, LIFELINE_SPACING, LIFELINE_START_X, LIFELINE_START_Y, MESSAGE_SPACING, ACTIVATION_WIDTH } from '@/types/diagram';
 import { useState, useRef, useEffect } from 'react';
 
+// Message label and description layout constants
+const LABEL_BOX_WIDTH = 100;
+const LABEL_BOX_HEIGHT = 18;
+const LABEL_BOX_OFFSET_Y = 22; // Above the arrow line
+const DESCRIPTION_BOX_WIDTH = 120;
+const DESCRIPTION_BOX_HEIGHT = 16;
+const DESCRIPTION_BOX_OFFSET_Y = 6; // Below the arrow line
+
 interface MessageArrowProps {
   message: Message;
   lifelines: Lifeline[];
@@ -101,8 +109,9 @@ export default function MessageArrow({
 
   const handleDescriptionBlur = () => {
     setIsEditingDescription(false);
-    if (editDescription !== (message.description || '')) {
-      onUpdate({ ...message, description: editDescription || undefined });
+    const trimmedDescription = editDescription.trim();
+    if (trimmedDescription !== (message.description || '')) {
+      onUpdate({ ...message, description: trimmedDescription || undefined });
     }
   };
 
@@ -159,17 +168,17 @@ export default function MessageArrow({
       {message.label && (
         <>
           <rect
-            x={midX - 50}
-            y={y - 22}
-            width={100}
-            height={18}
+            x={midX - LABEL_BOX_WIDTH / 2}
+            y={y - LABEL_BOX_OFFSET_Y}
+            width={LABEL_BOX_WIDTH}
+            height={LABEL_BOX_HEIGHT}
             fill="white"
             rx={4}
             className="cursor-pointer"
             onDoubleClick={handleLabelDoubleClick}
           />
           {isEditingLabel ? (
-            <foreignObject x={midX - 50} y={y - 22} width={100} height={18}>
+            <foreignObject x={midX - LABEL_BOX_WIDTH / 2} y={y - LABEL_BOX_OFFSET_Y} width={LABEL_BOX_WIDTH} height={LABEL_BOX_HEIGHT}>
               <input
                 ref={labelInputRef}
                 type="text"
@@ -184,7 +193,7 @@ export default function MessageArrow({
           ) : (
             <text
               x={midX}
-              y={y - 10}
+              y={y - LABEL_BOX_OFFSET_Y + LABEL_BOX_HEIGHT / 2 + 2}
               textAnchor="middle"
               className="text-xs font-medium fill-gray-700 cursor-pointer select-none"
               onDoubleClick={handleLabelDoubleClick}
@@ -199,17 +208,17 @@ export default function MessageArrow({
       {(message.description || isSelected) && (
         <>
           <rect
-            x={midX - 60}
-            y={y + 6}
-            width={120}
-            height={16}
+            x={midX - DESCRIPTION_BOX_WIDTH / 2}
+            y={y + DESCRIPTION_BOX_OFFSET_Y}
+            width={DESCRIPTION_BOX_WIDTH}
+            height={DESCRIPTION_BOX_HEIGHT}
             fill="white"
             rx={4}
             className="cursor-pointer"
             onDoubleClick={handleDescriptionDoubleClick}
           />
           {isEditingDescription ? (
-            <foreignObject x={midX - 60} y={y + 6} width={120} height={16}>
+            <foreignObject x={midX - DESCRIPTION_BOX_WIDTH / 2} y={y + DESCRIPTION_BOX_OFFSET_Y} width={DESCRIPTION_BOX_WIDTH} height={DESCRIPTION_BOX_HEIGHT}>
               <input
                 ref={descriptionInputRef}
                 type="text"
@@ -225,7 +234,7 @@ export default function MessageArrow({
           ) : (
             <text
               x={midX}
-              y={y + 18}
+              y={y + DESCRIPTION_BOX_OFFSET_Y + DESCRIPTION_BOX_HEIGHT / 2 + 4}
               textAnchor="middle"
               className="text-xs fill-gray-500 cursor-pointer select-none italic"
               onDoubleClick={handleDescriptionDoubleClick}
