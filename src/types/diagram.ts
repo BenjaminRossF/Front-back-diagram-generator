@@ -15,6 +15,7 @@ export interface Message {
   fromLifelineId: string;
   toLifelineId: string;
   label: string;
+  description?: string; // Optional description text displayed below the arrow
   type: MessageType;
   order: number; // Vertical position (time order)
 }
