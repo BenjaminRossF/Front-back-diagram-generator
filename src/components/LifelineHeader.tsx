@@ -8,9 +8,13 @@ interface LifelineHeaderProps {
   x: number;
   y: number;
   isSelected: boolean;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
   onSelect: (id: string) => void;
   onUpdate: (lifeline: Lifeline) => void;
   onDelete: (id: string) => void;
+  onMoveLeft: (id: string) => void;
+  onMoveRight: (id: string) => void;
 }
 
 export default function LifelineHeader({
@@ -18,9 +22,13 @@ export default function LifelineHeader({
   x,
   y,
   isSelected,
+  canMoveLeft,
+  canMoveRight,
   onSelect,
   onUpdate,
   onDelete,
+  onMoveLeft,
+  onMoveRight,
 }: LifelineHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(lifeline.name);
@@ -129,6 +137,52 @@ export default function LifelineHeader({
           >
             ×
           </text>
+        </g>
+      )}
+
+      {/* Move left button (triangle pointing left) */}
+      {isSelected && canMoveLeft && (
+        <g
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveLeft(lifeline.id);
+          }}
+          className="cursor-pointer"
+        >
+          <circle
+            cx={x - 15}
+            cy={y + LIFELINE_HEADER_HEIGHT / 2}
+            r={12}
+            fill="#6366F1"
+            className="hover:fill-indigo-600"
+          />
+          <polygon
+            points={`${x - 19},${y + LIFELINE_HEADER_HEIGHT / 2} ${x - 10},${y + LIFELINE_HEADER_HEIGHT / 2 - 5} ${x - 10},${y + LIFELINE_HEADER_HEIGHT / 2 + 5}`}
+            fill="white"
+          />
+        </g>
+      )}
+
+      {/* Move right button (triangle pointing right) */}
+      {isSelected && canMoveRight && (
+        <g
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveRight(lifeline.id);
+          }}
+          className="cursor-pointer"
+        >
+          <circle
+            cx={x + LIFELINE_HEADER_WIDTH + 15}
+            cy={y + LIFELINE_HEADER_HEIGHT / 2}
+            r={12}
+            fill="#6366F1"
+            className="hover:fill-indigo-600"
+          />
+          <polygon
+            points={`${x + LIFELINE_HEADER_WIDTH + 19},${y + LIFELINE_HEADER_HEIGHT / 2} ${x + LIFELINE_HEADER_WIDTH + 10},${y + LIFELINE_HEADER_HEIGHT / 2 - 5} ${x + LIFELINE_HEADER_WIDTH + 10},${y + LIFELINE_HEADER_HEIGHT / 2 + 5}`}
+            fill="white"
+          />
         </g>
       )}
     </g>
