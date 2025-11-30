@@ -3,14 +3,23 @@
 import { Lifeline, LIFELINE_HEADER_WIDTH, LIFELINE_HEADER_HEIGHT } from '@/types/diagram';
 import { useState, useRef, useEffect } from 'react';
 
+// Move button positioning constants
+const MOVE_BUTTON_OFFSET = 15; // Distance from header edge to button center
+const MOVE_BUTTON_RADIUS = 12; // Circle radius for move buttons
+const ARROW_SIZE = 5; // Size of the triangle arrow
+
 interface LifelineHeaderProps {
   lifeline: Lifeline;
   x: number;
   y: number;
   isSelected: boolean;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
   onSelect: (id: string) => void;
   onUpdate: (lifeline: Lifeline) => void;
   onDelete: (id: string) => void;
+  onMoveLeft: (id: string) => void;
+  onMoveRight: (id: string) => void;
 }
 
 export default function LifelineHeader({
@@ -18,9 +27,13 @@ export default function LifelineHeader({
   x,
   y,
   isSelected,
+  canMoveLeft,
+  canMoveRight,
   onSelect,
   onUpdate,
   onDelete,
+  onMoveLeft,
+  onMoveRight,
 }: LifelineHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(lifeline.name);
@@ -131,6 +144,60 @@ export default function LifelineHeader({
           </text>
         </g>
       )}
+
+      {/* Move left button (triangle pointing left) */}
+      {isSelected && canMoveLeft && (() => {
+        const centerX = x - MOVE_BUTTON_OFFSET;
+        const centerY = y + LIFELINE_HEADER_HEIGHT / 2;
+        return (
+          <g
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveLeft(lifeline.id);
+            }}
+            className="cursor-pointer"
+          >
+            <circle
+              cx={centerX}
+              cy={centerY}
+              r={MOVE_BUTTON_RADIUS}
+              fill="#6366F1"
+              className="hover:fill-indigo-600"
+            />
+            <polygon
+              points={`${centerX - ARROW_SIZE + 1},${centerY} ${centerX + ARROW_SIZE - 1},${centerY - ARROW_SIZE} ${centerX + ARROW_SIZE - 1},${centerY + ARROW_SIZE}`}
+              fill="white"
+            />
+          </g>
+        );
+      })()}
+
+      {/* Move right button (triangle pointing right) */}
+      {isSelected && canMoveRight && (() => {
+        const centerX = x + LIFELINE_HEADER_WIDTH + MOVE_BUTTON_OFFSET;
+        const centerY = y + LIFELINE_HEADER_HEIGHT / 2;
+        return (
+          <g
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveRight(lifeline.id);
+            }}
+            className="cursor-pointer"
+          >
+            <circle
+              cx={centerX}
+              cy={centerY}
+              r={MOVE_BUTTON_RADIUS}
+              fill="#6366F1"
+              className="hover:fill-indigo-600"
+            />
+            <polygon
+              points={`${centerX + ARROW_SIZE - 1},${centerY} ${centerX - ARROW_SIZE + 1},${centerY - ARROW_SIZE} ${centerX - ARROW_SIZE + 1},${centerY + ARROW_SIZE}`}
+              fill="white"
+            />
+          </g>
+        );
+      })()}
     </g>
   );
 }

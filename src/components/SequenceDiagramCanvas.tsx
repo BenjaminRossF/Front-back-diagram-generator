@@ -144,6 +144,42 @@ export default function SequenceDiagramCanvas() {
     setSelectedLifelineId(null);
   }, []);
 
+  // Move lifeline left
+  const handleMoveLifelineLeft = useCallback((id: string) => {
+    setLifelines((prev) => {
+      const lifeline = prev.find((l) => l.id === id);
+      if (!lifeline || lifeline.order === 0) return prev;
+      
+      return prev.map((l) => {
+        if (l.id === id) {
+          return { ...l, order: l.order - 1 };
+        }
+        if (l.order === lifeline.order - 1) {
+          return { ...l, order: l.order + 1 };
+        }
+        return l;
+      });
+    });
+  }, []);
+
+  // Move lifeline right
+  const handleMoveLifelineRight = useCallback((id: string) => {
+    setLifelines((prev) => {
+      const lifeline = prev.find((l) => l.id === id);
+      if (!lifeline || lifeline.order === prev.length - 1) return prev;
+      
+      return prev.map((l) => {
+        if (l.id === id) {
+          return { ...l, order: l.order + 1 };
+        }
+        if (l.order === lifeline.order + 1) {
+          return { ...l, order: l.order - 1 };
+        }
+        return l;
+      });
+    });
+  }, []);
+
   // Select message
   const handleSelectMessage = useCallback((id: string) => {
     setSelectedMessageId(id);
@@ -430,9 +466,13 @@ export default function SequenceDiagramCanvas() {
               x={LIFELINE_START_X + lifeline.order * LIFELINE_SPACING}
               y={LIFELINE_START_Y}
               isSelected={selectedLifelineId === lifeline.id || messageFromLifeline === lifeline.id}
+              canMoveLeft={lifeline.order > 0}
+              canMoveRight={lifeline.order < lifelines.length - 1}
               onSelect={handleSelectLifeline}
               onUpdate={handleUpdateLifeline}
               onDelete={handleDeleteLifeline}
+              onMoveLeft={handleMoveLifelineLeft}
+              onMoveRight={handleMoveLifelineRight}
             />
           ))}
         </svg>
@@ -450,7 +490,7 @@ export default function SequenceDiagramCanvas() {
 
       {/* Help text */}
       <div className="mt-4 text-center text-gray-600 text-sm">
-        <span className="font-medium">Tips:</span> Double-click actors to rename • Use &quot;Add Message&quot; buttons to draw arrows • Click between two arrows to toggle activation
+        <span className="font-medium">Tips:</span> Double-click actors to rename • Use &quot;Add Message&quot; buttons to draw arrows • Click between two arrows to toggle activation • Use arrow buttons to reorder actors
       </div>
     </div>
   );
