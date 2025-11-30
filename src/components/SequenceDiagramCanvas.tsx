@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   Lifeline,
   Message,
@@ -16,6 +16,8 @@ import LifelineHeader from './LifelineHeader';
 import MessageArrow from './MessageArrow';
 import ActivationBar from './ActivationBar';
 import SequenceToolbar from './SequenceToolbar';
+import { serializeToBuml, buildDiagramFromBuml } from '@/lib/BumlBuilder';
+import { ExportFactory } from '@/lib/ExportFactory';
 
 let idCounter = 0;
 
@@ -52,6 +54,9 @@ export default function SequenceDiagramCanvas() {
   const [isAddMessageMode, setIsAddMessageMode] = useState(false);
   const [messageFromLifeline, setMessageFromLifeline] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<'sync' | 'return'>('sync');
+  
+  // File input ref for loading .buml files
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate lifeline X position
   const getLifelineX = useCallback((lifeline: Lifeline) => {
@@ -227,6 +232,72 @@ export default function SequenceDiagramCanvas() {
     setMessageFromLifeline(null);
   }, []);
 
+  // Save diagram to .buml file
+  const handleSave = useCallback(() => {
+    const content = serializeToBuml(
+      { lifelines, messages, activations: [] },
+      activatedBlocks,
+      'Sequence Diagram'
+    );
+    
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'diagram.buml';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [lifelines, messages, activatedBlocks]);
+
+  // Load diagram from .buml file
+  const handleLoad = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  // Handle file selection
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const diagram = buildDiagramFromBuml(content);
+        
+        setLifelines(diagram.state.lifelines);
+        setMessages(diagram.state.messages);
+        setActivatedBlocks(new Set(diagram.activatedBlocks));
+        setSelectedLifelineId(null);
+        setSelectedMessageId(null);
+        setIsAddMessageMode(false);
+        setMessageFromLifeline(null);
+      } catch (error) {
+        alert('Failed to load diagram: ' + (error instanceof Error ? error.message : 'Invalid file'));
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset the input so the same file can be loaded again
+    event.target.value = '';
+  }, []);
+
+  // Export diagram as PDF/image
+  const handleExportPDF = useCallback(async () => {
+    const result = await ExportFactory.exportDiagram(
+      'pdf',
+      { lifelines, messages, activations: [] },
+      activatedBlocks,
+      'sequence-diagram'
+    );
+    
+    if (!result.success) {
+      alert('Failed to export diagram: ' + result.error);
+    }
+  }, [lifelines, messages, activatedBlocks]);
+
   // Get add message mode status message
   const getAddMessageModeMessage = () => {
     if (!isAddMessageMode) return '';
@@ -238,6 +309,15 @@ export default function SequenceDiagramCanvas() {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 p-6">
+      {/* Hidden file input for loading .buml files */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".buml"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+      
       <SequenceToolbar
         onAddLifeline={handleAddLifeline}
         isAddMessageMode={isAddMessageMode}
@@ -245,6 +325,9 @@ export default function SequenceDiagramCanvas() {
         onToggleAddMessageMode={handleToggleAddMessageMode}
         addMessageModeMessage={getAddMessageModeMessage()}
         onClearAll={handleClearAll}
+        onSave={handleSave}
+        onLoad={handleLoad}
+        onExportPDF={handleExportPDF}
       />
       
       <div

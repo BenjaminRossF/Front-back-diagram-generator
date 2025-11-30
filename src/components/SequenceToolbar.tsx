@@ -9,6 +9,9 @@ interface SequenceToolbarProps {
   onToggleAddMessageMode: (type: MessageType) => void;
   addMessageModeMessage: string;
   onClearAll: () => void;
+  onSave: () => void;
+  onLoad: () => void;
+  onExportPDF: () => void;
 }
 
 export default function SequenceToolbar({
@@ -18,6 +21,9 @@ export default function SequenceToolbar({
   onToggleAddMessageMode,
   addMessageModeMessage,
   onClearAll,
+  onSave,
+  onLoad,
+  onExportPDF,
 }: SequenceToolbarProps) {
   return (
     <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-4 mb-4 flex flex-wrap items-center gap-4">
@@ -88,6 +94,53 @@ export default function SequenceToolbar({
         onClick={onClearAll}
       >
         Clear All
+      </button>
+
+      <div className="h-8 w-px bg-gray-300" />
+
+      {/* Save/Load */}
+      <div className="flex items-center gap-2">
+        <button
+          className="px-3 py-2 rounded-lg font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors flex items-center gap-2"
+          onClick={onSave}
+          title="Save diagram to .buml file"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+            <polyline points="17,21 17,13 7,13 7,21" />
+            <polyline points="7,3 7,8 15,8" />
+          </svg>
+          Save
+        </button>
+        
+        <button
+          className="px-3 py-2 rounded-lg font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors flex items-center gap-2"
+          onClick={onLoad}
+          title="Load diagram from .buml file"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 002-2v-4M17 8l-5-5-5 5M12 3v12" />
+          </svg>
+          Load
+        </button>
+      </div>
+
+      <div className="h-8 w-px bg-gray-300" />
+
+      {/* Export */}
+      <button
+        className="px-3 py-2 rounded-lg font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors flex items-center gap-2"
+        onClick={onExportPDF}
+        title="Export diagram as image"
+      >
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+          <polyline points="14,2 14,8 20,8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10,9 9,9 8,9" />
+        </svg>
+        Export
       </button>
     </div>
   );
