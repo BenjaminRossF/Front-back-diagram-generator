@@ -3,6 +3,14 @@
 import { Message, Lifeline, LIFELINE_HEADER_WIDTH, LIFELINE_HEADER_HEIGHT, LIFELINE_SPACING, LIFELINE_START_X, LIFELINE_START_Y, MESSAGE_SPACING, ACTIVATION_WIDTH } from '@/types/diagram';
 import { useState, useRef, useEffect } from 'react';
 
+// Message label and description layout constants
+const LABEL_BOX_WIDTH = 100;
+const LABEL_BOX_HEIGHT = 18;
+const LABEL_BOX_OFFSET_Y = 22; // Above the arrow line
+const DESCRIPTION_BOX_WIDTH = 150;
+const DESCRIPTION_BOX_HEIGHT = 20;
+const DESCRIPTION_BOX_OFFSET_Y = 6; // Below the arrow line
+
 interface MessageArrowProps {
   message: Message;
   lifelines: Lifeline[];
@@ -28,19 +36,29 @@ export default function MessageArrow({
   onUpdate,
   onDelete,
 }: MessageArrowProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editLabel, setEditLabel] = useState(message.label);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [editDescription, setEditDescription] = useState(message.description || '');
+  const labelInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLInputElement>(null);
 
   const fromLifeline = lifelines.find((l) => l.id === message.fromLifelineId);
   const toLifeline = lifelines.find((l) => l.id === message.toLifelineId);
 
   useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (isEditingLabel && labelInputRef.current) {
+      labelInputRef.current.focus();
+      labelInputRef.current.select();
     }
-  }, [isEditing]);
+  }, [isEditingLabel]);
+
+  useEffect(() => {
+    if (isEditingDescription && descriptionInputRef.current) {
+      descriptionInputRef.current.focus();
+      descriptionInputRef.current.select();
+    }
+  }, [isEditingDescription]);
 
   if (!fromLifeline || !toLifeline) return null;
 
@@ -70,25 +88,48 @@ export default function MessageArrow({
     onSelect(message.id);
   };
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  const handleLabelDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsEditing(true);
+    setIsEditingLabel(true);
     setEditLabel(message.label);
   };
 
+  const handleDescriptionDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingDescription(true);
+    setEditDescription(message.description || '');
+  };
+
   const handleLabelBlur = () => {
-    setIsEditing(false);
+    setIsEditingLabel(false);
     if (editLabel !== message.label) {
       onUpdate({ ...message, label: editLabel });
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleDescriptionBlur = () => {
+    setIsEditingDescription(false);
+    const trimmedDescription = editDescription.trim();
+    if (trimmedDescription !== (message.description || '')) {
+      onUpdate({ ...message, description: trimmedDescription || undefined });
+    }
+  };
+
+  const handleLabelKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleLabelBlur();
     } else if (e.key === 'Escape') {
-      setIsEditing(false);
+      setIsEditingLabel(false);
       setEditLabel(message.label);
+    }
+  };
+
+  const handleDescriptionKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleDescriptionBlur();
+    } else if (e.key === 'Escape') {
+      setIsEditingDescription(false);
+      setEditDescription(message.description || '');
     }
   };
 
@@ -123,41 +164,86 @@ export default function MessageArrow({
         />
       )}
 
-      {/* Label background and text */}
+      {/* Label background and text (above the arrow) */}
       {message.label && (
         <>
           <rect
-            x={midX - 50}
-            y={y - 22}
-            width={100}
-            height={18}
+            x={midX - LABEL_BOX_WIDTH / 2}
+            y={y - LABEL_BOX_OFFSET_Y}
+            width={LABEL_BOX_WIDTH}
+            height={LABEL_BOX_HEIGHT}
             fill="white"
             rx={4}
             className="cursor-pointer"
-            onDoubleClick={handleDoubleClick}
+            onDoubleClick={handleLabelDoubleClick}
           />
-          {isEditing ? (
-            <foreignObject x={midX - 50} y={y - 22} width={100} height={18}>
-              <input
-                ref={inputRef}
-                type="text"
-                value={editLabel}
-                onChange={(e) => setEditLabel(e.target.value)}
-                onBlur={handleLabelBlur}
-                onKeyDown={handleKeyDown}
-                className="w-full h-full text-center text-xs font-medium text-gray-700 bg-transparent outline-none border border-blue-500 rounded"
-                onClick={(e) => e.stopPropagation()}
-              />
+          {isEditingLabel ? (
+            <foreignObject x={midX - LABEL_BOX_WIDTH / 2} y={y - LABEL_BOX_OFFSET_Y} width={LABEL_BOX_WIDTH} height={LABEL_BOX_HEIGHT}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <input
+                  ref={labelInputRef}
+                  type="text"
+                  value={editLabel}
+                  onChange={(e) => setEditLabel(e.target.value)}
+                  onBlur={handleLabelBlur}
+                  onKeyDown={handleLabelKeyDown}
+                  style={{ width: '100%', height: '100%', textAlign: 'center', fontSize: '12px', fontWeight: 500, color: '#374151', backgroundColor: 'white', outline: 'none', border: '1px solid #3B82F6', borderRadius: '4px', padding: '0 4px' }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
             </foreignObject>
           ) : (
             <text
               x={midX}
-              y={y - 10}
+              y={y - LABEL_BOX_OFFSET_Y + LABEL_BOX_HEIGHT / 2 + 2}
               textAnchor="middle"
               className="text-xs font-medium fill-gray-700 cursor-pointer select-none"
-              onDoubleClick={handleDoubleClick}
+              onDoubleClick={handleLabelDoubleClick}
             >
               {message.label}
+            </text>
+          )}
+        </>
+      )}
+
+      {/* Description background and text (below the arrow) */}
+      {(message.description || isSelected) && (
+        <>
+          <rect
+            x={midX - DESCRIPTION_BOX_WIDTH / 2}
+            y={y + DESCRIPTION_BOX_OFFSET_Y}
+            width={DESCRIPTION_BOX_WIDTH}
+            height={DESCRIPTION_BOX_HEIGHT}
+            fill="white"
+            rx={4}
+            className="cursor-pointer"
+            onDoubleClick={handleDescriptionDoubleClick}
+          />
+          {isEditingDescription ? (
+            <foreignObject x={midX - DESCRIPTION_BOX_WIDTH / 2} y={y + DESCRIPTION_BOX_OFFSET_Y} width={DESCRIPTION_BOX_WIDTH} height={DESCRIPTION_BOX_HEIGHT}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <input
+                  ref={descriptionInputRef}
+                  type="text"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  onBlur={handleDescriptionBlur}
+                  onKeyDown={handleDescriptionKeyDown}
+                  placeholder="Add description..."
+                  style={{ width: '100%', height: '100%', textAlign: 'center', fontSize: '12px', color: '#6B7280', backgroundColor: 'white', outline: 'none', border: '1px solid #3B82F6', borderRadius: '4px', padding: '0 4px' }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            </foreignObject>
+          ) : (
+            <text
+              x={midX}
+              y={y + DESCRIPTION_BOX_OFFSET_Y + DESCRIPTION_BOX_HEIGHT / 2 + 4}
+              textAnchor="middle"
+              className="text-xs fill-gray-500 cursor-pointer select-none italic"
+              onDoubleClick={handleDescriptionDoubleClick}
+            >
+              {message.description || (isSelected ? 'Double-click to add description' : '')}
             </text>
           )}
         </>
