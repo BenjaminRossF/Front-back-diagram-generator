@@ -147,6 +147,15 @@ export default function SequenceDiagramCanvas() {
       lifelineIds.add(m.toLifelineId);
     });
     
+    // Pre-compute the last message order for each lifeline (for pending activations)
+    const lastMessageOrderByLifeline = new Map<string, number>();
+    messages.forEach((m) => {
+      const currentFrom = lastMessageOrderByLifeline.get(m.fromLifelineId) ?? -1;
+      const currentTo = lastMessageOrderByLifeline.get(m.toLifelineId) ?? -1;
+      lastMessageOrderByLifeline.set(m.fromLifelineId, Math.max(currentFrom, m.order));
+      lastMessageOrderByLifeline.set(m.toLifelineId, Math.max(currentTo, m.order));
+    });
+    
     // For each lifeline, find activation ranges
     lifelineIds.forEach((lifelineId) => {
       // Track pending incoming messages (requests that haven't been responded to)
@@ -159,23 +168,23 @@ export default function SequenceDiagramCanvas() {
         } else if (msg.fromLifelineId === lifelineId && msg.type === 'return' && pendingIncoming.length > 0) {
           // This lifeline sends a return response - end of activation
           // Match with the most recent pending incoming (stack behavior for nested calls)
-          const startOrder = pendingIncoming.pop()!;
-          newActivations.push({
-            id: `activation-${lifelineId}-${startOrder}-${msg.order}`,
-            lifelineId,
-            startMessageOrder: startOrder,
-            endMessageOrder: msg.order,
-          });
+          const startOrder = pendingIncoming.pop();
+          if (startOrder !== undefined) {
+            newActivations.push({
+              id: `activation-${lifelineId}-${startOrder}-${msg.order}`,
+              lifelineId,
+              startMessageOrder: startOrder,
+              endMessageOrder: msg.order,
+            });
+          }
         }
       });
       
       // Handle any pending incoming messages that don't have a matching return
       // These represent ongoing activations (no response yet)
       pendingIncoming.forEach((startOrder) => {
-        // Find the last message involving this lifeline as the end
-        const lastMsgOrder = messages
-          .filter((m) => m.fromLifelineId === lifelineId || m.toLifelineId === lifelineId)
-          .reduce((max, m) => Math.max(max, m.order), startOrder);
+        // Use pre-computed last message order for this lifeline
+        const lastMsgOrder = lastMessageOrderByLifeline.get(lifelineId) ?? startOrder;
         
         newActivations.push({
           id: `activation-${lifelineId}-${startOrder}-${lastMsgOrder}`,
