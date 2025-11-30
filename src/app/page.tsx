@@ -1,5 +1,5 @@
-import DiagramCanvas from '@/components/DiagramCanvas';
+import SequenceDiagramCanvas from '@/components/SequenceDiagramCanvas';
 
 export default function Home() {
-  return <DiagramCanvas />;
+  return <SequenceDiagramCanvas />;
 }
