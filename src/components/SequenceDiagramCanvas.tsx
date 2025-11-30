@@ -490,7 +490,7 @@ export default function SequenceDiagramCanvas() {
 
       {/* Help text */}
       <div className="mt-4 text-center text-gray-600 text-sm">
-        <span className="font-medium">Tips:</span> Double-click actors to rename • Use &quot;Add Message&quot; buttons to draw arrows • Click between two arrows to toggle activation
+        <span className="font-medium">Tips:</span> Double-click actors to rename • Use &quot;Add Message&quot; buttons to draw arrows • Click between two arrows to toggle activation • Use arrow buttons to reorder actors
       </div>
     </div>
   );
