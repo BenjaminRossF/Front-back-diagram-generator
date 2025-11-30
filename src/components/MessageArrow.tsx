@@ -7,8 +7,8 @@ import { useState, useRef, useEffect } from 'react';
 const LABEL_BOX_WIDTH = 100;
 const LABEL_BOX_HEIGHT = 18;
 const LABEL_BOX_OFFSET_Y = 22; // Above the arrow line
-const DESCRIPTION_BOX_WIDTH = 120;
-const DESCRIPTION_BOX_HEIGHT = 16;
+const DESCRIPTION_BOX_WIDTH = 150;
+const DESCRIPTION_BOX_HEIGHT = 20;
 const DESCRIPTION_BOX_OFFSET_Y = 6; // Below the arrow line
 
 interface MessageArrowProps {
@@ -179,16 +179,18 @@ export default function MessageArrow({
           />
           {isEditingLabel ? (
             <foreignObject x={midX - LABEL_BOX_WIDTH / 2} y={y - LABEL_BOX_OFFSET_Y} width={LABEL_BOX_WIDTH} height={LABEL_BOX_HEIGHT}>
-              <input
-                ref={labelInputRef}
-                type="text"
-                value={editLabel}
-                onChange={(e) => setEditLabel(e.target.value)}
-                onBlur={handleLabelBlur}
-                onKeyDown={handleLabelKeyDown}
-                className="w-full h-full text-center text-xs font-medium text-gray-700 bg-transparent outline-none border border-blue-500 rounded"
-                onClick={(e) => e.stopPropagation()}
-              />
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <input
+                  ref={labelInputRef}
+                  type="text"
+                  value={editLabel}
+                  onChange={(e) => setEditLabel(e.target.value)}
+                  onBlur={handleLabelBlur}
+                  onKeyDown={handleLabelKeyDown}
+                  style={{ width: '100%', height: '100%', textAlign: 'center', fontSize: '12px', fontWeight: 500, color: '#374151', backgroundColor: 'white', outline: 'none', border: '1px solid #3B82F6', borderRadius: '4px', padding: '0 4px' }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
             </foreignObject>
           ) : (
             <text
@@ -219,17 +221,19 @@ export default function MessageArrow({
           />
           {isEditingDescription ? (
             <foreignObject x={midX - DESCRIPTION_BOX_WIDTH / 2} y={y + DESCRIPTION_BOX_OFFSET_Y} width={DESCRIPTION_BOX_WIDTH} height={DESCRIPTION_BOX_HEIGHT}>
-              <input
-                ref={descriptionInputRef}
-                type="text"
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                onBlur={handleDescriptionBlur}
-                onKeyDown={handleDescriptionKeyDown}
-                placeholder="Add description..."
-                className="w-full h-full text-center text-xs text-gray-500 bg-transparent outline-none border border-blue-500 rounded"
-                onClick={(e) => e.stopPropagation()}
-              />
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <input
+                  ref={descriptionInputRef}
+                  type="text"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  onBlur={handleDescriptionBlur}
+                  onKeyDown={handleDescriptionKeyDown}
+                  placeholder="Add description..."
+                  style={{ width: '100%', height: '100%', textAlign: 'center', fontSize: '12px', color: '#6B7280', backgroundColor: 'white', outline: 'none', border: '1px solid #3B82F6', borderRadius: '4px', padding: '0 4px' }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
             </foreignObject>
           ) : (
             <text
