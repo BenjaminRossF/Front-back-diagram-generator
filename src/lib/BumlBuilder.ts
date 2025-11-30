@@ -31,9 +31,22 @@ export interface BumlDiagram {
 // File format version for future compatibility
 export const BUML_VERSION = '1.0';
 
+// Documentation for coding agents
+export interface BumlDocumentation {
+  description: string;
+  structure: {
+    lifelines: string;
+    messages: string;
+    activations: string;
+    activatedBlocks: string;
+  };
+  usage: string;
+}
+
 // File format structure
 export interface BumlFileFormat {
   version: string;
+  _documentation?: BumlDocumentation;
   diagram: {
     lifelines: Lifeline[];
     messages: Message[];
@@ -198,6 +211,16 @@ export function serializeToBuml(
   const now = new Date().toISOString();
   const fileFormat: BumlFileFormat = {
     version: BUML_VERSION,
+    _documentation: {
+      description: 'This is a .buml (Builder UML) file representing a sequence diagram. It describes the interaction between different actors/components (lifelines) through messages exchanged over time.',
+      structure: {
+        lifelines: 'Array of actors/components in the diagram. Each lifeline has: id (unique identifier), name (display label), color (hex color for visual styling), and order (horizontal position from left to right, 0-indexed).',
+        messages: 'Array of arrows/communications between lifelines. Each message has: id (unique identifier), fromLifelineId (source actor), toLifelineId (destination actor), label (method/action name), description (optional details), type ("sync" for solid arrow requests, "return" for dashed arrow responses), and order (vertical position representing time sequence, 0-indexed).',
+        activations: 'Array of activation periods on lifelines (currently managed separately via activatedBlocks).',
+        activatedBlocks: 'Array of strings representing active processing periods on lifelines. Format: "lifelineId-startMessageOrder-endMessageOrder". These show when a lifeline is actively processing between two consecutive messages.',
+      },
+      usage: 'To recreate this diagram: 1) Create lifelines in order, 2) Draw messages between them following the order sequence, 3) Activate blocks between message pairs as specified. The visual layout flows left-to-right for lifelines and top-to-bottom for time/messages.',
+    },
     diagram: {
       lifelines: state.lifelines,
       messages: state.messages,
