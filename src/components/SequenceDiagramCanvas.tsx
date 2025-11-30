@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   Lifeline,
   Message,
@@ -16,6 +16,8 @@ import LifelineHeader from './LifelineHeader';
 import MessageArrow from './MessageArrow';
 import ActivationBar from './ActivationBar';
 import SequenceToolbar from './SequenceToolbar';
+import { serializeToBuml, buildDiagramFromBuml } from '@/lib/BumlBuilder';
+import { ExportFactory } from '@/lib/ExportFactory';
 
 let idCounter = 0;
 
@@ -52,6 +54,18 @@ export default function SequenceDiagramCanvas() {
   const [isAddMessageMode, setIsAddMessageMode] = useState(false);
   const [messageFromLifeline, setMessageFromLifeline] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<'sync' | 'return'>('sync');
+  
+  // File input ref for loading .buml files
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Notification state for user feedback
+  const [notification, setNotification] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+
+  // Show notification helper
+  const showNotification = useCallback((message: string, type: 'error' | 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  }, []);
 
   // Calculate lifeline X position
   const getLifelineX = useCallback((lifeline: Lifeline) => {
@@ -227,6 +241,75 @@ export default function SequenceDiagramCanvas() {
     setMessageFromLifeline(null);
   }, []);
 
+  // Save diagram to .buml file
+  const handleSave = useCallback(() => {
+    const content = serializeToBuml(
+      { lifelines, messages, activations: [] },
+      activatedBlocks,
+      'Sequence Diagram'
+    );
+    
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'diagram.buml';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [lifelines, messages, activatedBlocks]);
+
+  // Load diagram from .buml file
+  const handleLoad = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  // Handle file selection
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const diagram = buildDiagramFromBuml(content);
+        
+        setLifelines(diagram.state.lifelines);
+        setMessages(diagram.state.messages);
+        setActivatedBlocks(new Set(diagram.activatedBlocks));
+        setSelectedLifelineId(null);
+        setSelectedMessageId(null);
+        setIsAddMessageMode(false);
+        setMessageFromLifeline(null);
+        showNotification('Diagram loaded successfully!', 'success');
+      } catch (error) {
+        showNotification('Failed to load diagram: ' + (error instanceof Error ? error.message : 'Invalid file'), 'error');
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset the input so the same file can be loaded again
+    event.target.value = '';
+  }, [showNotification]);
+
+  // Export diagram as PDF/image
+  const handleExportPDF = useCallback(async () => {
+    const result = await ExportFactory.exportDiagram(
+      'pdf',
+      { lifelines, messages, activations: [] },
+      activatedBlocks,
+      'sequence-diagram'
+    );
+    
+    if (!result.success) {
+      showNotification('Failed to export diagram: ' + (result.error || 'Unknown error'), 'error');
+    } else {
+      showNotification('Diagram exported successfully!', 'success');
+    }
+  }, [lifelines, messages, activatedBlocks, showNotification]);
+
   // Get add message mode status message
   const getAddMessageModeMessage = () => {
     if (!isAddMessageMode) return '';
@@ -238,6 +321,28 @@ export default function SequenceDiagramCanvas() {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 p-6">
+      {/* Notification toast */}
+      {notification && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all ${
+            notification.type === 'error'
+              ? 'bg-red-100 text-red-800 border border-red-200'
+              : 'bg-green-100 text-green-800 border border-green-200'
+          }`}
+        >
+          {notification.message}
+        </div>
+      )}
+      
+      {/* Hidden file input for loading .buml files */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".buml"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+      
       <SequenceToolbar
         onAddLifeline={handleAddLifeline}
         isAddMessageMode={isAddMessageMode}
@@ -245,6 +350,9 @@ export default function SequenceDiagramCanvas() {
         onToggleAddMessageMode={handleToggleAddMessageMode}
         addMessageModeMessage={getAddMessageModeMessage()}
         onClearAll={handleClearAll}
+        onSave={handleSave}
+        onLoad={handleLoad}
+        onExportPDF={handleExportPDF}
       />
       
       <div
