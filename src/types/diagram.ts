@@ -1,24 +1,36 @@
-export interface Entity {
+// Lifeline - represents an actor/component (horizontal axis)
+export interface Lifeline {
   id: string;
   name: string;
   color: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  order: number; // Position from left to right
 }
 
-export interface Connection {
+// Message types for sequence diagrams
+export type MessageType = 'sync' | 'return';
+
+// Message - horizontal arrow between lifelines
+export interface Message {
   id: string;
-  fromEntityId: string;
-  toEntityId: string;
+  fromLifelineId: string;
+  toLifelineId: string;
   label: string;
-  color: string;
+  type: MessageType;
+  order: number; // Vertical position (time order)
 }
 
-export interface DiagramState {
-  entities: Entity[];
-  connections: Connection[];
+// Activation - shows when a lifeline is active/processing
+export interface Activation {
+  id: string;
+  lifelineId: string;
+  startMessageOrder: number; // Message order when activation starts
+  endMessageOrder: number; // Message order when activation ends
+}
+
+export interface SequenceDiagramState {
+  lifelines: Lifeline[];
+  messages: Message[];
+  activations: Activation[];
 }
 
 export const DEFAULT_COLORS = [
@@ -32,5 +44,12 @@ export const DEFAULT_COLORS = [
   '#6366F1', // Indigo
 ];
 
-export const DEFAULT_ENTITY_WIDTH = 180;
-export const DEFAULT_ENTITY_HEIGHT = 80;
+// Sequence diagram layout constants
+export const LIFELINE_HEADER_WIDTH = 120;
+export const LIFELINE_HEADER_HEIGHT = 60;
+export const LIFELINE_SPACING = 180;
+export const LIFELINE_START_X = 100;
+export const LIFELINE_START_Y = 80;
+export const MESSAGE_SPACING = 60;
+export const ACTIVATION_WIDTH = 16;
+export const CANVAS_PADDING = 40;
