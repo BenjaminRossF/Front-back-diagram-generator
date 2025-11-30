@@ -45,7 +45,7 @@ function getMessageY(order: number): number {
 }
 
 /**
- * PDF Exporter - Exports diagram as PDF using canvas-based rendering
+ * PNG Exporter - Exports diagram as PNG image using canvas-based rendering
  */
 class PDFExporter implements IExporter {
   async export(
@@ -263,8 +263,14 @@ class PDFExporter implements IExporter {
       });
 
       // Convert canvas to blob and download
-      const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((b) => resolve(b!), 'image/png', 1.0);
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => {
+          if (b) {
+            resolve(b);
+          } else {
+            reject(new Error('Failed to create image blob'));
+          }
+        }, 'image/png', 1.0);
       });
 
       // Create download link

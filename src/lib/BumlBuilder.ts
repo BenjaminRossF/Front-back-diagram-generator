@@ -218,7 +218,12 @@ export function serializeToBuml(
  * Parses a .buml file content and validates its structure
  */
 export function parseBumlFile(content: string): BumlFileFormat {
-  const parsed = JSON.parse(content);
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error('Invalid .buml file: malformed JSON');
+  }
 
   // Validate version
   if (!parsed.version || typeof parsed.version !== 'string') {

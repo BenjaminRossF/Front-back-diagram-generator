@@ -57,6 +57,15 @@ export default function SequenceDiagramCanvas() {
   
   // File input ref for loading .buml files
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Notification state for user feedback
+  const [notification, setNotification] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+
+  // Show notification helper
+  const showNotification = useCallback((message: string, type: 'error' | 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  }, []);
 
   // Calculate lifeline X position
   const getLifelineX = useCallback((lifeline: Lifeline) => {
@@ -274,15 +283,16 @@ export default function SequenceDiagramCanvas() {
         setSelectedMessageId(null);
         setIsAddMessageMode(false);
         setMessageFromLifeline(null);
+        showNotification('Diagram loaded successfully!', 'success');
       } catch (error) {
-        alert('Failed to load diagram: ' + (error instanceof Error ? error.message : 'Invalid file'));
+        showNotification('Failed to load diagram: ' + (error instanceof Error ? error.message : 'Invalid file'), 'error');
       }
     };
     reader.readAsText(file);
     
     // Reset the input so the same file can be loaded again
     event.target.value = '';
-  }, []);
+  }, [showNotification]);
 
   // Export diagram as PDF/image
   const handleExportPDF = useCallback(async () => {
@@ -294,9 +304,11 @@ export default function SequenceDiagramCanvas() {
     );
     
     if (!result.success) {
-      alert('Failed to export diagram: ' + result.error);
+      showNotification('Failed to export diagram: ' + (result.error || 'Unknown error'), 'error');
+    } else {
+      showNotification('Diagram exported successfully!', 'success');
     }
-  }, [lifelines, messages, activatedBlocks]);
+  }, [lifelines, messages, activatedBlocks, showNotification]);
 
   // Get add message mode status message
   const getAddMessageModeMessage = () => {
@@ -309,6 +321,19 @@ export default function SequenceDiagramCanvas() {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 p-6">
+      {/* Notification toast */}
+      {notification && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all ${
+            notification.type === 'error'
+              ? 'bg-red-100 text-red-800 border border-red-200'
+              : 'bg-green-100 text-green-800 border border-green-200'
+          }`}
+        >
+          {notification.message}
+        </div>
+      )}
+      
       {/* Hidden file input for loading .buml files */}
       <input
         ref={fileInputRef}
