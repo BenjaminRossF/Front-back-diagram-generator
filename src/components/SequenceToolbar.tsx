@@ -8,8 +8,6 @@ interface SequenceToolbarProps {
   messageType: MessageType;
   onToggleAddMessageMode: (type: MessageType) => void;
   addMessageModeMessage: string;
-  onAddActivation: () => void;
-  canAddActivation: boolean;
   onClearAll: () => void;
 }
 
@@ -19,8 +17,6 @@ export default function SequenceToolbar({
   messageType,
   onToggleAddMessageMode,
   addMessageModeMessage,
-  onAddActivation,
-  canAddActivation,
   onClearAll,
 }: SequenceToolbarProps) {
   return (
@@ -83,22 +79,6 @@ export default function SequenceToolbar({
           {addMessageModeMessage}
         </span>
       )}
-      
-      <div className="h-8 w-px bg-gray-300" />
-      
-      {/* Add Activation */}
-      <button
-        className={`px-3 py-2 rounded-lg font-medium transition-colors ${
-          canAddActivation
-            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-        }`}
-        onClick={onAddActivation}
-        disabled={!canAddActivation}
-        title={canAddActivation ? 'Add activation bar to selected actor' : 'Select an actor and add at least one message first'}
-      >
-        Add Activation
-      </button>
       
       <div className="h-8 w-px bg-gray-300" />
       

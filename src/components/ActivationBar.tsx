@@ -5,9 +5,8 @@ import { Activation, Lifeline, LIFELINE_HEADER_WIDTH, LIFELINE_HEADER_HEIGHT, LI
 interface ActivationBarProps {
   activation: Activation;
   lifeline: Lifeline;
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-  onDelete: (id: string) => void;
+  isActive: boolean;
+  onClick: () => void;
 }
 
 function getLifelineX(lifeline: Lifeline): number {
@@ -21,57 +20,73 @@ function getMessageY(order: number): number {
 export default function ActivationBar({
   activation,
   lifeline,
-  isSelected,
-  onSelect,
-  onDelete,
+  isActive,
+  onClick,
 }: ActivationBarProps) {
   const x = getLifelineX(lifeline) - ACTIVATION_WIDTH / 2;
-  const startY = getMessageY(activation.startMessageOrder) - 5;
-  const endY = getMessageY(activation.endMessageOrder) + 5;
+  const startY = getMessageY(activation.startMessageOrder);
+  const endY = getMessageY(activation.endMessageOrder);
   const height = Math.max(endY - startY, 20);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onSelect(activation.id);
+    onClick();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      onClick();
+    }
   };
 
   return (
-    <g onClick={handleClick}>
+    <g
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-pressed={isActive}
+      aria-label={`Toggle activation for ${lifeline.name}`}
+      className="cursor-pointer focus:outline-none"
+    >
+      {/* Clickable background area (slightly wider for easier clicking) */}
       <rect
-        x={x}
+        x={x - 4}
         y={startY}
-        width={ACTIVATION_WIDTH}
+        width={ACTIVATION_WIDTH + 8}
         height={height}
-        rx={2}
-        fill={lifeline.color}
-        className={`cursor-pointer ${isSelected ? 'stroke-white stroke-2' : ''}`}
-        filter="drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
+        fill="transparent"
+        className="hover:fill-gray-200/30"
       />
-      
-      {/* Delete button when selected */}
-      {isSelected && (
-        <g
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(activation.id);
-          }}
-          className="cursor-pointer"
-        >
-          <circle
-            cx={x + ACTIVATION_WIDTH + 12}
-            cy={startY + height / 2}
-            r={10}
-            fill="#EF4444"
-          />
-          <text
-            x={x + ACTIVATION_WIDTH + 12}
-            y={startY + height / 2 + 4}
-            textAnchor="middle"
-            className="text-xs font-bold fill-white select-none"
-          >
-            ×
-          </text>
-        </g>
+      {/* Activation bar (only visible when active) */}
+      {isActive && (
+        <rect
+          x={x}
+          y={startY}
+          width={ACTIVATION_WIDTH}
+          height={height}
+          rx={2}
+          fill={lifeline.color}
+          filter="drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
+        />
+      )}
+      {/* Inactive indicator (dashed outline when not active) */}
+      {!isActive && (
+        <rect
+          x={x}
+          y={startY}
+          width={ACTIVATION_WIDTH}
+          height={height}
+          rx={2}
+          fill="transparent"
+          stroke={lifeline.color}
+          strokeWidth={1}
+          strokeDasharray="4,2"
+          opacity={0.4}
+          className="hover:opacity-70"
+        />
       )}
     </g>
   );

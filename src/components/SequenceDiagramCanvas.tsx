@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Lifeline,
   Message,
-  Activation,
   DEFAULT_COLORS,
   LIFELINE_HEADER_WIDTH,
   LIFELINE_HEADER_HEIGHT,
@@ -31,13 +30,25 @@ const INITIAL_LIFELINES: Lifeline[] = [
   { id: generateId('lifeline'), name: 'AI', color: DEFAULT_COLORS[4], order: 2 },
 ];
 
+// Represents a block between two consecutive messages on a lifeline
+interface ActivationBlock {
+  lifelineId: string;
+  startMessageOrder: number;
+  endMessageOrder: number;
+}
+
+// Generate a unique key for an activation block
+function getBlockKey(block: ActivationBlock): string {
+  return `${block.lifelineId}-${block.startMessageOrder}-${block.endMessageOrder}`;
+}
+
 export default function SequenceDiagramCanvas() {
   const [lifelines, setLifelines] = useState<Lifeline[]>(INITIAL_LIFELINES);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [activations, setActivations] = useState<Activation[]>([]);
+  // Track which blocks are activated using a Set of block keys
+  const [activatedBlocks, setActivatedBlocks] = useState<Set<string>>(new Set());
   const [selectedLifelineId, setSelectedLifelineId] = useState<string | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  const [selectedActivationId, setSelectedActivationId] = useState<string | null>(null);
   const [isAddMessageMode, setIsAddMessageMode] = useState(false);
   const [messageFromLifeline, setMessageFromLifeline] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<'sync' | 'return'>('sync');
@@ -91,7 +102,6 @@ export default function SequenceDiagramCanvas() {
       } else {
         setSelectedLifelineId(id);
         setSelectedMessageId(null);
-        setSelectedActivationId(null);
       }
     },
     [isAddMessageMode, messageFromLifeline, messageType, messages.length]
@@ -112,7 +122,11 @@ export default function SequenceDiagramCanvas() {
     setMessages((prev) =>
       prev.filter((m) => m.fromLifelineId !== id && m.toLifelineId !== id)
     );
-    setActivations((prev) => prev.filter((a) => a.lifelineId !== id));
+    // Clean up activated blocks for deleted lifeline using filter
+    setActivatedBlocks((prev) => {
+      const prefix = id + '-';
+      return new Set(Array.from(prev).filter((key) => !key.startsWith(prefix)));
+    });
     setSelectedLifelineId(null);
   }, []);
 
@@ -120,7 +134,6 @@ export default function SequenceDiagramCanvas() {
   const handleSelectMessage = useCallback((id: string) => {
     setSelectedMessageId(id);
     setSelectedLifelineId(null);
-    setSelectedActivationId(null);
   }, []);
 
   // Update message
@@ -130,57 +143,55 @@ export default function SequenceDiagramCanvas() {
 
   // Delete message
   const handleDeleteMessage = useCallback((id: string) => {
-    const deletedMessage = messages.find((m) => m.id === id);
     setMessages((prev) => {
       const filtered = prev.filter((m) => m.id !== id);
       // Reorder remaining messages
       return filtered.map((m, i) => ({ ...m, order: i }));
     });
-    // Update activations that reference this message
-    if (deletedMessage) {
-      setActivations((prev) =>
-        prev.map((a) => {
-          if (a.startMessageOrder === deletedMessage.order || a.endMessageOrder === deletedMessage.order) {
-            return a; // Will be cleaned up separately
-          }
-          // Adjust orders for messages after the deleted one
-          return {
-            ...a,
-            startMessageOrder: a.startMessageOrder > deletedMessage.order ? a.startMessageOrder - 1 : a.startMessageOrder,
-            endMessageOrder: a.endMessageOrder > deletedMessage.order ? a.endMessageOrder - 1 : a.endMessageOrder,
-          };
-        }).filter((a) => a.startMessageOrder >= 0 && a.endMessageOrder >= 0)
-      );
-    }
-    setSelectedMessageId(null);
-  }, [messages]);
-
-  // Select activation
-  const handleSelectActivation = useCallback((id: string) => {
-    setSelectedActivationId(id);
-    setSelectedLifelineId(null);
+    // Clean up activated blocks when message count changes
+    // All block keys will be recalculated based on new message orders
+    setActivatedBlocks(new Set());
     setSelectedMessageId(null);
   }, []);
 
-  // Delete activation
-  const handleDeleteActivation = useCallback((id: string) => {
-    setActivations((prev) => prev.filter((a) => a.id !== id));
-    setSelectedActivationId(null);
-  }, []);
-
-  // Add activation
-  const handleAddActivation = useCallback(() => {
-    if (!selectedLifelineId || messages.length === 0) return;
+  // Compute all possible activation blocks for each lifeline
+  // A block exists between any two consecutive messages that touch a lifeline
+  const availableBlocks = useMemo((): ActivationBlock[] => {
+    const blocks: ActivationBlock[] = [];
     
-    // Find available message range
-    const newActivation: Activation = {
-      id: generateId('activation'),
-      lifelineId: selectedLifelineId,
-      startMessageOrder: 0,
-      endMessageOrder: messages.length - 1,
-    };
-    setActivations((prev) => [...prev, newActivation]);
-  }, [selectedLifelineId, messages.length]);
+    // For each lifeline, find messages that touch it
+    lifelines.forEach((lifeline) => {
+      // Get all messages that touch this lifeline (as source or destination)
+      const touchingMessages = messages
+        .filter((m) => m.fromLifelineId === lifeline.id || m.toLifelineId === lifeline.id)
+        .sort((a, b) => a.order - b.order);
+      
+      // Create a block between each pair of consecutive touching messages
+      for (let i = 0; i < touchingMessages.length - 1; i++) {
+        blocks.push({
+          lifelineId: lifeline.id,
+          startMessageOrder: touchingMessages[i].order,
+          endMessageOrder: touchingMessages[i + 1].order,
+        });
+      }
+    });
+    
+    return blocks;
+  }, [lifelines, messages]);
+
+  // Toggle activation for a block
+  const handleToggleBlock = useCallback((block: ActivationBlock) => {
+    const key = getBlockKey(block);
+    setActivatedBlocks((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  }, []);
 
   // Toggle add message mode
   const handleToggleAddMessageMode = useCallback((type: 'sync' | 'return') => {
@@ -194,14 +205,12 @@ export default function SequenceDiagramCanvas() {
     }
     setSelectedLifelineId(null);
     setSelectedMessageId(null);
-    setSelectedActivationId(null);
   }, [isAddMessageMode, messageType]);
 
   // Canvas click handler
   const handleCanvasClick = useCallback(() => {
     setSelectedLifelineId(null);
     setSelectedMessageId(null);
-    setSelectedActivationId(null);
     if (isAddMessageMode && messageFromLifeline) {
       setMessageFromLifeline(null);
     }
@@ -211,10 +220,9 @@ export default function SequenceDiagramCanvas() {
   const handleClearAll = useCallback(() => {
     setLifelines([]);
     setMessages([]);
-    setActivations([]);
+    setActivatedBlocks(new Set());
     setSelectedLifelineId(null);
     setSelectedMessageId(null);
-    setSelectedActivationId(null);
     setIsAddMessageMode(false);
     setMessageFromLifeline(null);
   }, []);
@@ -236,8 +244,6 @@ export default function SequenceDiagramCanvas() {
         messageType={messageType}
         onToggleAddMessageMode={handleToggleAddMessageMode}
         addMessageModeMessage={getAddMessageModeMessage()}
-        onAddActivation={handleAddActivation}
-        canAddActivation={!!selectedLifelineId && messages.length > 0}
         onClearAll={handleClearAll}
       />
       
@@ -273,18 +279,24 @@ export default function SequenceDiagramCanvas() {
             );
           })}
 
-          {/* Activation bars */}
-          {activations.map((activation) => {
-            const lifeline = lifelines.find((l) => l.id === activation.lifelineId);
+          {/* Activation blocks (clickable areas between consecutive messages) */}
+          {availableBlocks.map((block) => {
+            const lifeline = lifelines.find((l) => l.id === block.lifelineId);
             if (!lifeline) return null;
+            const key = getBlockKey(block);
+            const isActive = activatedBlocks.has(key);
             return (
               <ActivationBar
-                key={activation.id}
-                activation={activation}
+                key={key}
+                activation={{
+                  id: key,
+                  lifelineId: block.lifelineId,
+                  startMessageOrder: block.startMessageOrder,
+                  endMessageOrder: block.endMessageOrder,
+                }}
                 lifeline={lifeline}
-                isSelected={selectedActivationId === activation.id}
-                onSelect={handleSelectActivation}
-                onDelete={handleDeleteActivation}
+                isActive={isActive}
+                onClick={() => handleToggleBlock(block)}
               />
             );
           })}
@@ -330,7 +342,7 @@ export default function SequenceDiagramCanvas() {
 
       {/* Help text */}
       <div className="mt-4 text-center text-gray-600 text-sm">
-        <span className="font-medium">Tips:</span> Double-click actors to rename • Use &quot;Add Message&quot; buttons to draw arrows • Select an actor and click &quot;Add Activation&quot; to show processing time
+        <span className="font-medium">Tips:</span> Double-click actors to rename • Use &quot;Add Message&quot; buttons to draw arrows • Click between two arrows to toggle activation
       </div>
     </div>
   );
