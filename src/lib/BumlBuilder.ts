@@ -150,6 +150,23 @@ export class BumlBuilder implements IDiagramBuilder {
 }
 
 /**
+ * Converts a Map of activation blocks to serializable arrays/object
+ */
+function convertActivatedBlocksMapToSerializable(
+  activatedBlocks: Map<string, ActivationBlockData>
+): { blockKeys: string[]; blockData: Record<string, ActivationBlockData> } {
+  const blockKeys: string[] = [];
+  const blockData: Record<string, ActivationBlockData> = {};
+  activatedBlocks.forEach((data, key) => {
+    if (data.isActive) {
+      blockKeys.push(key);
+      blockData[key] = data;
+    }
+  });
+  return { blockKeys, blockData };
+}
+
+/**
  * Director class that knows how to construct diagrams from different sources
  */
 export class BumlDirector {
@@ -216,14 +233,7 @@ export class BumlDirector {
     }
 
     // Set activated blocks (convert Map to arrays/object)
-    const blockKeys: string[] = [];
-    const blockData: Record<string, ActivationBlockData> = {};
-    activatedBlocks.forEach((data, key) => {
-      if (data.isActive) {
-        blockKeys.push(key);
-        blockData[key] = data;
-      }
-    });
+    const { blockKeys, blockData } = convertActivatedBlocksMapToSerializable(activatedBlocks);
     this.builder.setActivatedBlocks(blockKeys);
     this.builder.setActivatedBlocksData(blockData);
 
@@ -241,15 +251,8 @@ export function serializeToBuml(
 ): string {
   const now = new Date().toISOString();
   
-  // Convert Map to arrays/object for serialization
-  const blockKeys: string[] = [];
-  const blockData: Record<string, ActivationBlockData> = {};
-  activatedBlocks.forEach((data, key) => {
-    if (data.isActive) {
-      blockKeys.push(key);
-      blockData[key] = data;
-    }
-  });
+  // Convert Map to arrays/object for serialization using utility function
+  const { blockKeys, blockData } = convertActivatedBlocksMapToSerializable(activatedBlocks);
 
   const fileFormat: BumlFileFormat = {
     version: BUML_VERSION,

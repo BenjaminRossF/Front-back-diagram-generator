@@ -27,6 +27,17 @@ function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${idCounter}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
+// Type guard to validate ActivationBlockData
+function isActivationBlockData(data: unknown): data is ActivationBlockData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'isActive' in data &&
+    typeof (data as ActivationBlockData).isActive === 'boolean' &&
+    (!('text' in data) || typeof (data as ActivationBlockData).text === 'string' || (data as ActivationBlockData).text === undefined)
+  );
+}
+
 const INITIAL_LIFELINES: Lifeline[] = [
   { id: generateId('lifeline'), name: 'Front', color: DEFAULT_COLORS[0], order: 0 },
   { id: generateId('lifeline'), name: 'Back', color: DEFAULT_COLORS[1], order: 1 },
@@ -347,11 +358,13 @@ export default function SequenceDiagramCanvas() {
         
         setLifelines(diagram.state.lifelines);
         setMessages(diagram.state.messages);
-        // Convert activatedBlocksData to Map
+        // Convert activatedBlocksData to Map with type validation
         const blocksMap = new Map<string, ActivationBlockData>();
         if (diagram.activatedBlocksData) {
           for (const [key, data] of Object.entries(diagram.activatedBlocksData)) {
-            blocksMap.set(key, data as ActivationBlockData);
+            if (isActivationBlockData(data)) {
+              blocksMap.set(key, data);
+            }
           }
         } else {
           // Fallback for old format: convert string array to Map

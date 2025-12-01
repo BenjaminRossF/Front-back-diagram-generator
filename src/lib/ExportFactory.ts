@@ -49,6 +49,7 @@ function getMessageY(order: number): number {
 const TEXT_BOX_WIDTH = 80;
 const TEXT_BOX_HEIGHT = 20;
 const TEXT_BOX_OFFSET_X = 20;
+const TEXT_PADDING = 8;
 
 /**
  * PNG Exporter - Exports diagram as PNG image using canvas-based rendering
@@ -168,7 +169,7 @@ class PDFExporter implements IExporter {
               ctx.font = '500 11px system-ui, sans-serif';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
-              ctx.fillText(blockData.text, textX + TEXT_BOX_WIDTH / 2, midY, TEXT_BOX_WIDTH - 8);
+              ctx.fillText(blockData.text, textX + TEXT_BOX_WIDTH / 2, midY, TEXT_BOX_WIDTH - TEXT_PADDING);
             }
           }
         }
