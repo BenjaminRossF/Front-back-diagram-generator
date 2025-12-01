@@ -7,11 +7,11 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 const LABEL_BOX_WIDTH = 100;
 const LABEL_BOX_HEIGHT = 18;
 const LABEL_BOX_OFFSET_Y = 22; // Above the arrow line
-const DESCRIPTION_BOX_WIDTH = 180;
+const DESCRIPTION_BOX_WIDTH = 140;
 const DESCRIPTION_BOX_MIN_HEIGHT = 20;
 const DESCRIPTION_BOX_LINE_HEIGHT = 16;
 const DESCRIPTION_BOX_OFFSET_Y = 6; // Below the arrow line
-const DESCRIPTION_CHARS_PER_LINE = 25; // Approximate characters per line
+const DESCRIPTION_CHARS_PER_LINE = 20; // Approximate characters per line
 
 interface MessageArrowProps {
   message: Message;
