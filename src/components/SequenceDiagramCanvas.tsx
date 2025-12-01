@@ -269,7 +269,11 @@ export default function SequenceDiagramCanvas() {
     }
   }, [isAddMessageMode, messageFromLifeline]);
 
-  // Clear all
+  // Sanitize diagram name for use as filename
+  const getSanitizedFileName = useCallback((name: string): string => {
+    return name.replace(/[<>:"/\\|?*]/g, '_').trim() || 'diagram';
+  }, []);
+
   // Clear all
   const handleClearAll = useCallback(() => {
     setLifelines([]);
@@ -290,8 +294,7 @@ export default function SequenceDiagramCanvas() {
       diagramName
     );
     
-    // Sanitize filename by removing/replacing invalid characters
-    const sanitizedName = diagramName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'diagram';
+    const sanitizedName = getSanitizedFileName(diagramName);
     
     const blob = new Blob([content], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -302,7 +305,7 @@ export default function SequenceDiagramCanvas() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [lifelines, messages, activatedBlocks, diagramName]);
+  }, [lifelines, messages, activatedBlocks, diagramName, getSanitizedFileName]);
 
   // Load diagram from .buml file
   const handleLoad = useCallback(() => {
@@ -343,8 +346,7 @@ export default function SequenceDiagramCanvas() {
 
   // Export diagram as PDF/image
   const handleExportPDF = useCallback(async () => {
-    // Sanitize filename by removing/replacing invalid characters
-    const sanitizedName = diagramName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'diagram';
+    const sanitizedName = getSanitizedFileName(diagramName);
     
     const result = await ExportFactory.exportDiagram(
       'pdf',
@@ -358,7 +360,7 @@ export default function SequenceDiagramCanvas() {
     } else {
       showNotification('Diagram exported successfully!', 'success');
     }
-  }, [lifelines, messages, activatedBlocks, diagramName, showNotification]);
+  }, [lifelines, messages, activatedBlocks, diagramName, getSanitizedFileName, showNotification]);
 
   // Get add message mode status message
   const getAddMessageModeMessage = () => {
