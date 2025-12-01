@@ -6,6 +6,7 @@
 import {
   SequenceDiagramState,
   Lifeline,
+  ActivationBlockData,
   LIFELINE_HEADER_WIDTH,
   LIFELINE_HEADER_HEIGHT,
   LIFELINE_SPACING,
@@ -28,7 +29,7 @@ export interface ExportResult {
 interface IExporter {
   export(
     state: SequenceDiagramState,
-    activatedBlocks: Set<string>,
+    activatedBlocks: Map<string, ActivationBlockData>,
     fileName?: string
   ): Promise<ExportResult>;
 }
@@ -44,13 +45,19 @@ function getMessageY(order: number): number {
   return LIFELINE_START_Y + LIFELINE_HEADER_HEIGHT + 30 + order * MESSAGE_SPACING;
 }
 
+// Text label layout constants for export
+const TEXT_BOX_WIDTH = 80;
+const TEXT_BOX_HEIGHT = 20;
+const TEXT_BOX_OFFSET_X = 20;
+const TEXT_PADDING = 8;
+
 /**
  * PNG Exporter - Exports diagram as PNG image using canvas-based rendering
  */
 class PDFExporter implements IExporter {
   async export(
     state: SequenceDiagramState,
-    activatedBlocks: Set<string>,
+    activatedBlocks: Map<string, ActivationBlockData>,
     fileName: string = 'diagram'
   ): Promise<ExportResult> {
     try {
@@ -128,12 +135,14 @@ class PDFExporter implements IExporter {
             endMessageOrder: touchingMessages[i + 1].order,
           };
           const key = `${block.lifelineId}-${block.startMessageOrder}-${block.endMessageOrder}`;
+          const blockData = activatedBlocks.get(key);
 
-          if (activatedBlocks.has(key)) {
+          if (blockData?.isActive) {
             const x = getLifelineX(lifeline) - ACTIVATION_WIDTH / 2;
             const startY = getMessageY(block.startMessageOrder);
             const endY = getMessageY(block.endMessageOrder);
             const height = Math.max(endY - startY, 20);
+            const midY = startY + height / 2;
 
             ctx.fillStyle = lifeline.color;
             ctx.shadowColor = 'rgba(0,0,0,0.2)';
@@ -144,6 +153,24 @@ class PDFExporter implements IExporter {
             ctx.shadowColor = 'transparent';
             ctx.shadowBlur = 0;
             ctx.shadowOffsetY = 0;
+
+            // Draw text label if present
+            if (blockData.text) {
+              const textX = x + ACTIVATION_WIDTH + TEXT_BOX_OFFSET_X;
+              const textY = midY - TEXT_BOX_HEIGHT / 2;
+
+              // Draw text background
+              ctx.fillStyle = '#ffffff';
+              this.roundRect(ctx, textX, textY, TEXT_BOX_WIDTH, TEXT_BOX_HEIGHT, 4);
+              ctx.fill();
+
+              // Draw text
+              ctx.fillStyle = '#4B5563';
+              ctx.font = '500 11px system-ui, sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(blockData.text, textX + TEXT_BOX_WIDTH / 2, midY, TEXT_BOX_WIDTH - TEXT_PADDING);
+            }
           }
         }
       });
@@ -337,7 +364,7 @@ export class ExportFactory {
   static async exportDiagram(
     format: ExportFormat,
     state: SequenceDiagramState,
-    activatedBlocks: Set<string>,
+    activatedBlocks: Map<string, ActivationBlockData>,
     fileName?: string
   ): Promise<ExportResult> {
     const exporter = ExportFactory.createExporter(format);

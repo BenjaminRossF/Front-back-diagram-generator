@@ -10,6 +10,7 @@ import {
   Lifeline,
   Message,
   Activation,
+  ActivationBlockData,
 } from '@/types/diagram';
 
 // Interface for the diagram builder
@@ -19,6 +20,7 @@ interface IDiagramBuilder {
   addMessage(message: Message): IDiagramBuilder;
   addActivation(activation: Activation): IDiagramBuilder;
   setActivatedBlocks(blocks: string[]): IDiagramBuilder;
+  setActivatedBlocksData(blocksData: Record<string, ActivationBlockData>): IDiagramBuilder;
   build(): BumlDiagram;
 }
 
@@ -26,11 +28,12 @@ interface IDiagramBuilder {
 export interface BumlDiagram {
   state: SequenceDiagramState;
   activatedBlocks: string[];
+  activatedBlocksData?: Record<string, ActivationBlockData>;
   name?: string;
 }
 
 // File format version for future compatibility
-export const BUML_VERSION = '1.0';
+export const BUML_VERSION = '1.1';
 
 // Documentation for coding agents
 export interface BumlDocumentation {
@@ -40,6 +43,7 @@ export interface BumlDocumentation {
     messages: string;
     activations: string;
     activatedBlocks: string;
+    activatedBlocksData?: string;
   };
   usage: string;
 }
@@ -53,6 +57,7 @@ export interface BumlFileFormat {
     messages: Message[];
     activations: Activation[];
     activatedBlocks: string[];
+    activatedBlocksData?: Record<string, ActivationBlockData>;
   };
   metadata: {
     createdAt: string;
@@ -70,6 +75,7 @@ export class BumlBuilder implements IDiagramBuilder {
   private messages: Message[] = [];
   private activations: Activation[] = [];
   private activatedBlocks: string[] = [];
+  private activatedBlocksData: Record<string, ActivationBlockData> = {};
 
   constructor() {
     this.reset();
@@ -83,6 +89,7 @@ export class BumlBuilder implements IDiagramBuilder {
     this.messages = [];
     this.activations = [];
     this.activatedBlocks = [];
+    this.activatedBlocksData = {};
   }
 
   /**
@@ -110,10 +117,18 @@ export class BumlBuilder implements IDiagramBuilder {
   }
 
   /**
-   * Sets the activated blocks
+   * Sets the activated blocks (legacy format - array of keys)
    */
   setActivatedBlocks(blocks: string[]): IDiagramBuilder {
     this.activatedBlocks = [...blocks];
+    return this;
+  }
+
+  /**
+   * Sets the activated blocks data (new format - includes text)
+   */
+  setActivatedBlocksData(blocksData: Record<string, ActivationBlockData>): IDiagramBuilder {
+    this.activatedBlocksData = { ...blocksData };
     return this;
   }
 
@@ -128,9 +143,27 @@ export class BumlBuilder implements IDiagramBuilder {
         activations: [...this.activations],
       },
       activatedBlocks: [...this.activatedBlocks],
+      activatedBlocksData: { ...this.activatedBlocksData },
     };
     return result;
   }
+}
+
+/**
+ * Converts a Map of activation blocks to serializable arrays/object
+ */
+function convertActivatedBlocksMapToSerializable(
+  activatedBlocks: Map<string, ActivationBlockData>
+): { blockKeys: string[]; blockData: Record<string, ActivationBlockData> } {
+  const blockKeys: string[] = [];
+  const blockData: Record<string, ActivationBlockData> = {};
+  activatedBlocks.forEach((data, key) => {
+    if (data.isActive) {
+      blockKeys.push(key);
+      blockData[key] = data;
+    }
+  });
+  return { blockKeys, blockData };
 }
 
 /**
@@ -164,8 +197,13 @@ export class BumlDirector {
       this.builder.addActivation(activation);
     }
 
-    // Set activated blocks
+    // Set activated blocks (legacy format)
     this.builder.setActivatedBlocks(fileContent.diagram.activatedBlocks);
+
+    // Set activated blocks data (new format with text)
+    if (fileContent.diagram.activatedBlocksData) {
+      this.builder.setActivatedBlocksData(fileContent.diagram.activatedBlocksData);
+    }
 
     return this.builder.build();
   }
@@ -175,7 +213,7 @@ export class BumlDirector {
    */
   constructFromState(
     state: SequenceDiagramState,
-    activatedBlocks: Set<string>
+    activatedBlocks: Map<string, ActivationBlockData>
   ): BumlDiagram {
     this.builder.reset();
 
@@ -194,8 +232,10 @@ export class BumlDirector {
       this.builder.addActivation(activation);
     }
 
-    // Set activated blocks
-    this.builder.setActivatedBlocks(Array.from(activatedBlocks));
+    // Set activated blocks (convert Map to arrays/object)
+    const { blockKeys, blockData } = convertActivatedBlocksMapToSerializable(activatedBlocks);
+    this.builder.setActivatedBlocks(blockKeys);
+    this.builder.setActivatedBlocksData(blockData);
 
     return this.builder.build();
   }
@@ -206,10 +246,14 @@ export class BumlDirector {
  */
 export function serializeToBuml(
   state: SequenceDiagramState,
-  activatedBlocks: Set<string>,
+  activatedBlocks: Map<string, ActivationBlockData>,
   name?: string
 ): string {
   const now = new Date().toISOString();
+  
+  // Convert Map to arrays/object for serialization using utility function
+  const { blockKeys, blockData } = convertActivatedBlocksMapToSerializable(activatedBlocks);
+
   const fileFormat: BumlFileFormat = {
     version: BUML_VERSION,
     _documentation: {
@@ -235,18 +279,23 @@ export function serializeToBuml(
           'Format: "lifelineId-startMessageOrder-endMessageOrder". ' +
           'Example: "user-0-2" means the user lifeline is active from message 0 to message 2. ' +
           'These show when a lifeline is actively processing between two consecutive messages.',
+        activatedBlocksData:
+          'Object mapping block keys to their data including isActive status and optional text label. ' +
+          'The text property allows adding descriptive text to display on active blocks.',
       },
       usage:
         'To recreate this diagram: 1) Create lifelines in order, ' +
         '2) Draw messages between them following the order sequence, ' +
-        '3) Activate blocks between message pairs as specified. ' +
+        '3) Activate blocks between message pairs as specified, ' +
+        '4) Add text labels to activated blocks using activatedBlocksData. ' +
         'The visual layout flows left-to-right for lifelines and top-to-bottom for time/messages.',
     },
     diagram: {
       lifelines: state.lifelines,
       messages: state.messages,
       activations: state.activations,
-      activatedBlocks: Array.from(activatedBlocks),
+      activatedBlocks: blockKeys,
+      activatedBlocksData: blockData,
     },
     metadata: {
       createdAt: now,
@@ -293,6 +342,11 @@ export function parseBumlFile(content: string): BumlFileFormat {
 
   if (!Array.isArray(parsed.diagram.activatedBlocks)) {
     parsed.diagram.activatedBlocks = [];
+  }
+
+  // Handle activatedBlocksData (new format)
+  if (!parsed.diagram.activatedBlocksData || typeof parsed.diagram.activatedBlocksData !== 'object') {
+    parsed.diagram.activatedBlocksData = {};
   }
 
   // Validate metadata

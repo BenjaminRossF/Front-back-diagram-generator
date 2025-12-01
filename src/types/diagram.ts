@@ -28,6 +28,12 @@ export interface Activation {
   endMessageOrder: number; // Message order when activation ends
 }
 
+// Data for an activated block including optional text label
+export interface ActivationBlockData {
+  isActive: boolean;
+  text?: string; // Optional text to display on the activation bar
+}
+
 export interface SequenceDiagramState {
   lifelines: Lifeline[];
   messages: Message[];
