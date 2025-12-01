@@ -26,6 +26,7 @@ interface IDiagramBuilder {
 export interface BumlDiagram {
   state: SequenceDiagramState;
   activatedBlocks: string[];
+  name?: string;
 }
 
 // File format version for future compatibility
@@ -312,5 +313,11 @@ export function buildDiagramFromBuml(content: string): BumlDiagram {
   const fileContent = parseBumlFile(content);
   const builder = new BumlBuilder();
   const director = new BumlDirector(builder);
-  return director.constructFromFile(fileContent);
+  const diagram = director.constructFromFile(fileContent);
+  
+  // Include the name from metadata if available
+  return {
+    ...diagram,
+    name: fileContent.metadata?.name,
+  };
 }

@@ -58,6 +58,9 @@ export default function SequenceDiagramCanvas() {
   // File input ref for loading .buml files
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Diagram name state
+  const [diagramName, setDiagramName] = useState<string>('Untitled Diagram');
+  
   // Notification state for user feedback
   const [notification, setNotification] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
@@ -266,11 +269,17 @@ export default function SequenceDiagramCanvas() {
     }
   }, [isAddMessageMode, messageFromLifeline]);
 
+  // Sanitize diagram name for use as filename
+  const getSanitizedFileName = useCallback((name: string): string => {
+    return name.replace(/[<>:"/\\|?*]/g, '_').trim() || 'diagram';
+  }, []);
+
   // Clear all
   const handleClearAll = useCallback(() => {
     setLifelines([]);
     setMessages([]);
     setActivatedBlocks(new Set());
+    setDiagramName('Untitled Diagram');
     setSelectedLifelineId(null);
     setSelectedMessageId(null);
     setIsAddMessageMode(false);
@@ -282,19 +291,21 @@ export default function SequenceDiagramCanvas() {
     const content = serializeToBuml(
       { lifelines, messages, activations: [] },
       activatedBlocks,
-      'Sequence Diagram'
+      diagramName
     );
+    
+    const sanitizedName = getSanitizedFileName(diagramName);
     
     const blob = new Blob([content], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'diagram.buml';
+    link.download = `${sanitizedName}.buml`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [lifelines, messages, activatedBlocks]);
+  }, [lifelines, messages, activatedBlocks, diagramName, getSanitizedFileName]);
 
   // Load diagram from .buml file
   const handleLoad = useCallback(() => {
@@ -315,6 +326,9 @@ export default function SequenceDiagramCanvas() {
         setLifelines(diagram.state.lifelines);
         setMessages(diagram.state.messages);
         setActivatedBlocks(new Set(diagram.activatedBlocks));
+        // Restore the diagram name if available, otherwise use the filename without extension
+        const nameFromFile = diagram.name || file.name.replace(/\.buml$/i, '');
+        setDiagramName(nameFromFile);
         setSelectedLifelineId(null);
         setSelectedMessageId(null);
         setIsAddMessageMode(false);
@@ -332,11 +346,13 @@ export default function SequenceDiagramCanvas() {
 
   // Export diagram as PDF/image
   const handleExportPDF = useCallback(async () => {
+    const sanitizedName = getSanitizedFileName(diagramName);
+    
     const result = await ExportFactory.exportDiagram(
       'pdf',
       { lifelines, messages, activations: [] },
       activatedBlocks,
-      'sequence-diagram'
+      sanitizedName
     );
     
     if (!result.success) {
@@ -344,7 +360,7 @@ export default function SequenceDiagramCanvas() {
     } else {
       showNotification('Diagram exported successfully!', 'success');
     }
-  }, [lifelines, messages, activatedBlocks, showNotification]);
+  }, [lifelines, messages, activatedBlocks, diagramName, getSanitizedFileName, showNotification]);
 
   // Get add message mode status message
   const getAddMessageModeMessage = () => {
@@ -380,6 +396,8 @@ export default function SequenceDiagramCanvas() {
       />
       
       <SequenceToolbar
+        diagramName={diagramName}
+        onDiagramNameChange={setDiagramName}
         onAddLifeline={handleAddLifeline}
         isAddMessageMode={isAddMessageMode}
         messageType={messageType}

@@ -3,6 +3,8 @@
 import { DEFAULT_COLORS, MessageType } from '@/types/diagram';
 
 interface SequenceToolbarProps {
+  diagramName: string;
+  onDiagramNameChange: (name: string) => void;
   onAddLifeline: (color: string) => void;
   isAddMessageMode: boolean;
   messageType: MessageType;
@@ -15,6 +17,8 @@ interface SequenceToolbarProps {
 }
 
 export default function SequenceToolbar({
+  diagramName,
+  onDiagramNameChange,
   onAddLifeline,
   isAddMessageMode,
   messageType,
@@ -27,6 +31,22 @@ export default function SequenceToolbar({
 }: SequenceToolbarProps) {
   return (
     <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-4 mb-4 flex flex-wrap items-center gap-4">
+      {/* Diagram Name Input */}
+      <div className="flex items-center gap-2">
+        <label htmlFor="diagram-name" className="text-gray-700 font-medium">Name:</label>
+        <input
+          id="diagram-name"
+          type="text"
+          value={diagramName}
+          onChange={(e) => onDiagramNameChange(e.target.value)}
+          className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-40"
+          placeholder="Diagram name"
+          title="Enter diagram name (used for save/export filename)"
+        />
+      </div>
+      
+      <div className="h-8 w-px bg-gray-300" />
+      
       {/* Add Actor/Lifeline */}
       <div className="flex items-center gap-2">
         <span className="text-gray-700 font-medium">Add Actor:</span>
