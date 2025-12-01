@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   Lifeline,
   Message,
+  ActivationBlockData,
   DEFAULT_COLORS,
   LIFELINE_HEADER_WIDTH,
   LIFELINE_HEADER_HEIGHT,
@@ -47,8 +48,8 @@ function getBlockKey(block: ActivationBlock): string {
 export default function SequenceDiagramCanvas() {
   const [lifelines, setLifelines] = useState<Lifeline[]>(INITIAL_LIFELINES);
   const [messages, setMessages] = useState<Message[]>([]);
-  // Track which blocks are activated using a Set of block keys
-  const [activatedBlocks, setActivatedBlocks] = useState<Set<string>>(new Set());
+  // Track which blocks are activated using a Map of block keys to block data (includes text)
+  const [activatedBlocks, setActivatedBlocks] = useState<Map<string, ActivationBlockData>>(new Map());
   const [selectedLifelineId, setSelectedLifelineId] = useState<string | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [isAddMessageMode, setIsAddMessageMode] = useState(false);
@@ -142,7 +143,13 @@ export default function SequenceDiagramCanvas() {
     // Clean up activated blocks for deleted lifeline using filter
     setActivatedBlocks((prev) => {
       const prefix = id + '-';
-      return new Set(Array.from(prev).filter((key) => !key.startsWith(prefix)));
+      const newMap = new Map<string, ActivationBlockData>();
+      prev.forEach((value, key) => {
+        if (!key.startsWith(prefix)) {
+          newMap.set(key, value);
+        }
+      });
+      return newMap;
     });
     setSelectedLifelineId(null);
   }, []);
@@ -203,7 +210,7 @@ export default function SequenceDiagramCanvas() {
     });
     // Clean up activated blocks when message count changes
     // All block keys will be recalculated based on new message orders
-    setActivatedBlocks(new Set());
+    setActivatedBlocks(new Map());
     setSelectedMessageId(null);
   }, []);
 
@@ -236,13 +243,28 @@ export default function SequenceDiagramCanvas() {
   const handleToggleBlock = useCallback((block: ActivationBlock) => {
     const key = getBlockKey(block);
     setActivatedBlocks((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(key)) {
-        newSet.delete(key);
+      const newMap = new Map(prev);
+      const existing = newMap.get(key);
+      if (existing?.isActive) {
+        // Deactivate the block (remove it)
+        newMap.delete(key);
       } else {
-        newSet.add(key);
+        // Activate the block, preserving any existing text
+        newMap.set(key, { isActive: true, text: existing?.text });
       }
-      return newSet;
+      return newMap;
+    });
+  }, []);
+
+  // Update text for an activation block
+  const handleUpdateBlockText = useCallback((key: string, text: string | undefined) => {
+    setActivatedBlocks((prev) => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(key);
+      if (existing) {
+        newMap.set(key, { ...existing, text });
+      }
+      return newMap;
     });
   }, []);
 
@@ -278,7 +300,7 @@ export default function SequenceDiagramCanvas() {
   const handleClearAll = useCallback(() => {
     setLifelines([]);
     setMessages([]);
-    setActivatedBlocks(new Set());
+    setActivatedBlocks(new Map());
     setDiagramName('Untitled Diagram');
     setSelectedLifelineId(null);
     setSelectedMessageId(null);
@@ -325,7 +347,19 @@ export default function SequenceDiagramCanvas() {
         
         setLifelines(diagram.state.lifelines);
         setMessages(diagram.state.messages);
-        setActivatedBlocks(new Set(diagram.activatedBlocks));
+        // Convert activatedBlocksData to Map
+        const blocksMap = new Map<string, ActivationBlockData>();
+        if (diagram.activatedBlocksData) {
+          for (const [key, data] of Object.entries(diagram.activatedBlocksData)) {
+            blocksMap.set(key, data as ActivationBlockData);
+          }
+        } else {
+          // Fallback for old format: convert string array to Map
+          for (const key of diagram.activatedBlocks) {
+            blocksMap.set(key, { isActive: true });
+          }
+        }
+        setActivatedBlocks(blocksMap);
         // Restore the diagram name if available, otherwise use the filename without extension
         const nameFromFile = diagram.name || file.name.replace(/\.buml$/i, '');
         setDiagramName(nameFromFile);
@@ -446,7 +480,8 @@ export default function SequenceDiagramCanvas() {
             const lifeline = lifelines.find((l) => l.id === block.lifelineId);
             if (!lifeline) return null;
             const key = getBlockKey(block);
-            const isActive = activatedBlocks.has(key);
+            const blockData = activatedBlocks.get(key);
+            const isActive = blockData?.isActive ?? false;
             return (
               <ActivationBar
                 key={key}
@@ -458,7 +493,9 @@ export default function SequenceDiagramCanvas() {
                 }}
                 lifeline={lifeline}
                 isActive={isActive}
+                text={blockData?.text}
                 onClick={() => handleToggleBlock(block)}
+                onTextChange={(text) => handleUpdateBlockText(key, text)}
               />
             );
           })}
@@ -508,7 +545,7 @@ export default function SequenceDiagramCanvas() {
 
       {/* Help text */}
       <div className="mt-4 text-center text-gray-600 text-sm">
-        <span className="font-medium">Tips:</span> Double-click actors to rename • Use &quot;Add Message&quot; buttons to draw arrows • Click between two arrows to toggle activation • Use arrow buttons to reorder actors
+        <span className="font-medium">Tips:</span> Double-click actors to rename • Use &quot;Add Message&quot; buttons to draw arrows • Click between two arrows to toggle activation • Double-click activation text to add labels • Use arrow buttons to reorder actors
       </div>
     </div>
   );
