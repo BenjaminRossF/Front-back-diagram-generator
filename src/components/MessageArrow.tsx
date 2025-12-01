@@ -7,9 +7,11 @@ import { useState, useRef, useEffect } from 'react';
 const LABEL_BOX_WIDTH = 100;
 const LABEL_BOX_HEIGHT = 18;
 const LABEL_BOX_OFFSET_Y = 22; // Above the arrow line
-const DESCRIPTION_BOX_WIDTH = 150;
-const DESCRIPTION_BOX_HEIGHT = 20;
+const DESCRIPTION_BOX_WIDTH = 180;
+const DESCRIPTION_BOX_MIN_HEIGHT = 20;
+const DESCRIPTION_BOX_LINE_HEIGHT = 16;
 const DESCRIPTION_BOX_OFFSET_Y = 6; // Below the arrow line
+const DESCRIPTION_CHARS_PER_LINE = 25; // Approximate characters per line
 
 interface MessageArrowProps {
   message: Message;
@@ -41,7 +43,7 @@ export default function MessageArrow({
   const [editLabel, setEditLabel] = useState(message.label);
   const [editDescription, setEditDescription] = useState(message.description || '');
   const labelInputRef = useRef<HTMLInputElement>(null);
-  const descriptionInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
 
   const fromLifeline = lifelines.find((l) => l.id === message.fromLifelineId);
   const toLifeline = lifelines.find((l) => l.id === message.toLifelineId);
@@ -125,7 +127,8 @@ export default function MessageArrow({
   };
 
   const handleDescriptionKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
       handleDescriptionBlur();
     } else if (e.key === 'Escape') {
       setIsEditingDescription(false);
@@ -207,47 +210,93 @@ export default function MessageArrow({
       )}
 
       {/* Description background and text (below the arrow) */}
-      {(message.description || isSelected) && (
-        <>
-          <rect
-            x={midX - DESCRIPTION_BOX_WIDTH / 2}
-            y={y + DESCRIPTION_BOX_OFFSET_Y}
-            width={DESCRIPTION_BOX_WIDTH}
-            height={DESCRIPTION_BOX_HEIGHT}
-            fill="white"
-            rx={4}
-            className="cursor-pointer"
-            onDoubleClick={handleDescriptionDoubleClick}
-          />
-          {isEditingDescription ? (
-            <foreignObject x={midX - DESCRIPTION_BOX_WIDTH / 2} y={y + DESCRIPTION_BOX_OFFSET_Y} width={DESCRIPTION_BOX_WIDTH} height={DESCRIPTION_BOX_HEIGHT}>
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <input
-                  ref={descriptionInputRef}
-                  type="text"
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
-                  onBlur={handleDescriptionBlur}
-                  onKeyDown={handleDescriptionKeyDown}
-                  placeholder="Add description..."
-                  style={{ width: '100%', height: '100%', textAlign: 'center', fontSize: '12px', color: '#6B7280', backgroundColor: 'white', outline: 'none', border: '1px solid #3B82F6', borderRadius: '4px', padding: '0 4px' }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-            </foreignObject>
-          ) : (
-            <text
-              x={midX}
-              y={y + DESCRIPTION_BOX_OFFSET_Y + DESCRIPTION_BOX_HEIGHT / 2 + 4}
-              textAnchor="middle"
-              className="text-xs fill-gray-500 cursor-pointer select-none italic"
+      {(message.description || isSelected) && (() => {
+        const displayText = message.description || (isSelected ? 'Double-click to add description' : '');
+        const estimatedLines = Math.max(1, Math.ceil(displayText.length / DESCRIPTION_CHARS_PER_LINE));
+        const descriptionBoxHeight = Math.max(DESCRIPTION_BOX_MIN_HEIGHT, estimatedLines * DESCRIPTION_BOX_LINE_HEIGHT + 8);
+        const editBoxHeight = Math.max(60, estimatedLines * DESCRIPTION_BOX_LINE_HEIGHT + 16);
+        
+        return (
+          <>
+            <rect
+              x={midX - DESCRIPTION_BOX_WIDTH / 2}
+              y={y + DESCRIPTION_BOX_OFFSET_Y}
+              width={DESCRIPTION_BOX_WIDTH}
+              height={descriptionBoxHeight}
+              fill="white"
+              rx={4}
+              className="cursor-pointer"
               onDoubleClick={handleDescriptionDoubleClick}
-            >
-              {message.description || (isSelected ? 'Double-click to add description' : '')}
-            </text>
-          )}
-        </>
-      )}
+            />
+            {isEditingDescription ? (
+              <foreignObject x={midX - DESCRIPTION_BOX_WIDTH / 2} y={y + DESCRIPTION_BOX_OFFSET_Y} width={DESCRIPTION_BOX_WIDTH} height={editBoxHeight}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '4px' }}>
+                  <textarea
+                    ref={descriptionInputRef}
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    onBlur={handleDescriptionBlur}
+                    onKeyDown={handleDescriptionKeyDown}
+                    placeholder="Add description..."
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      textAlign: 'center', 
+                      fontSize: '12px', 
+                      color: '#6B7280', 
+                      backgroundColor: 'white', 
+                      outline: 'none', 
+                      border: '1px solid #3B82F6', 
+                      borderRadius: '4px', 
+                      padding: '4px',
+                      resize: 'none',
+                      lineHeight: '1.3'
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              </foreignObject>
+            ) : (
+              <foreignObject 
+                x={midX - DESCRIPTION_BOX_WIDTH / 2} 
+                y={y + DESCRIPTION_BOX_OFFSET_Y} 
+                width={DESCRIPTION_BOX_WIDTH} 
+                height={descriptionBoxHeight}
+              >
+                <div 
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    padding: '4px',
+                    boxSizing: 'border-box'
+                  }}
+                  onDoubleClick={handleDescriptionDoubleClick}
+                >
+                  <p 
+                    style={{ 
+                      margin: 0,
+                      fontSize: '12px', 
+                      color: '#6B7280', 
+                      textAlign: 'center',
+                      fontStyle: 'italic',
+                      lineHeight: '1.3',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    {displayText}
+                  </p>
+                </div>
+              </foreignObject>
+            )}
+          </>
+        );
+      })()}
 
       {/* Delete button when selected */}
       {isSelected && (
