@@ -1,7 +1,7 @@
 'use client';
 
 import { Message, Lifeline, LIFELINE_HEADER_WIDTH, LIFELINE_HEADER_HEIGHT, LIFELINE_SPACING, LIFELINE_START_X, LIFELINE_START_Y, MESSAGE_SPACING, ACTIVATION_WIDTH } from '@/types/diagram';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 
 // Message label and description layout constants
 const LABEL_BOX_WIDTH = 100;
@@ -61,6 +61,16 @@ export default function MessageArrow({
       descriptionInputRef.current.select();
     }
   }, [isEditingDescription]);
+
+  // Calculate description box dimensions based on text length
+  // Must be called before any early returns to satisfy React hooks rules
+  const descriptionLayout = useMemo(() => {
+    const displayText = message.description || (isSelected ? 'Double-click to add description' : '');
+    const estimatedLines = Math.max(1, Math.ceil(displayText.length / DESCRIPTION_CHARS_PER_LINE));
+    const boxHeight = Math.max(DESCRIPTION_BOX_MIN_HEIGHT, estimatedLines * DESCRIPTION_BOX_LINE_HEIGHT + 8);
+    const editHeight = Math.max(60, estimatedLines * DESCRIPTION_BOX_LINE_HEIGHT + 16);
+    return { displayText, boxHeight, editHeight };
+  }, [message.description, isSelected]);
 
   if (!fromLifeline || !toLifeline) return null;
 
@@ -210,93 +220,86 @@ export default function MessageArrow({
       )}
 
       {/* Description background and text (below the arrow) */}
-      {(message.description || isSelected) && (() => {
-        const displayText = message.description || (isSelected ? 'Double-click to add description' : '');
-        const estimatedLines = Math.max(1, Math.ceil(displayText.length / DESCRIPTION_CHARS_PER_LINE));
-        const descriptionBoxHeight = Math.max(DESCRIPTION_BOX_MIN_HEIGHT, estimatedLines * DESCRIPTION_BOX_LINE_HEIGHT + 8);
-        const editBoxHeight = Math.max(60, estimatedLines * DESCRIPTION_BOX_LINE_HEIGHT + 16);
-        
-        return (
-          <>
-            <rect
-              x={midX - DESCRIPTION_BOX_WIDTH / 2}
-              y={y + DESCRIPTION_BOX_OFFSET_Y}
-              width={DESCRIPTION_BOX_WIDTH}
-              height={descriptionBoxHeight}
-              fill="white"
-              rx={4}
-              className="cursor-pointer"
-              onDoubleClick={handleDescriptionDoubleClick}
-            />
-            {isEditingDescription ? (
-              <foreignObject x={midX - DESCRIPTION_BOX_WIDTH / 2} y={y + DESCRIPTION_BOX_OFFSET_Y} width={DESCRIPTION_BOX_WIDTH} height={editBoxHeight}>
-                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '4px' }}>
-                  <textarea
-                    ref={descriptionInputRef}
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    onBlur={handleDescriptionBlur}
-                    onKeyDown={handleDescriptionKeyDown}
-                    placeholder="Add description..."
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      textAlign: 'center', 
-                      fontSize: '12px', 
-                      color: '#6B7280', 
-                      backgroundColor: 'white', 
-                      outline: 'none', 
-                      border: '1px solid #3B82F6', 
-                      borderRadius: '4px', 
-                      padding: '4px',
-                      resize: 'none',
-                      lineHeight: '1.3'
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
-              </foreignObject>
-            ) : (
-              <foreignObject 
-                x={midX - DESCRIPTION_BOX_WIDTH / 2} 
-                y={y + DESCRIPTION_BOX_OFFSET_Y} 
-                width={DESCRIPTION_BOX_WIDTH} 
-                height={descriptionBoxHeight}
-              >
-                <div 
+      {(message.description || isSelected) && (
+        <>
+          <rect
+            x={midX - DESCRIPTION_BOX_WIDTH / 2}
+            y={y + DESCRIPTION_BOX_OFFSET_Y}
+            width={DESCRIPTION_BOX_WIDTH}
+            height={descriptionLayout.boxHeight}
+            fill="white"
+            rx={4}
+            className="cursor-pointer"
+            onDoubleClick={handleDescriptionDoubleClick}
+          />
+          {isEditingDescription ? (
+            <foreignObject x={midX - DESCRIPTION_BOX_WIDTH / 2} y={y + DESCRIPTION_BOX_OFFSET_Y} width={DESCRIPTION_BOX_WIDTH} height={descriptionLayout.editHeight}>
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '4px' }}>
+                <textarea
+                  ref={descriptionInputRef}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  onBlur={handleDescriptionBlur}
+                  onKeyDown={handleDescriptionKeyDown}
+                  placeholder="Add description..."
                   style={{ 
                     width: '100%', 
                     height: '100%', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
+                    textAlign: 'center', 
+                    fontSize: '12px', 
+                    color: '#6B7280', 
+                    backgroundColor: 'white', 
+                    outline: 'none', 
+                    border: '1px solid #3B82F6', 
+                    borderRadius: '4px', 
                     padding: '4px',
-                    boxSizing: 'border-box'
+                    resize: 'none',
+                    lineHeight: '1.3'
                   }}
-                  onDoubleClick={handleDescriptionDoubleClick}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            </foreignObject>
+          ) : (
+            <foreignObject 
+              x={midX - DESCRIPTION_BOX_WIDTH / 2} 
+              y={y + DESCRIPTION_BOX_OFFSET_Y} 
+              width={DESCRIPTION_BOX_WIDTH} 
+              height={descriptionLayout.boxHeight}
+            >
+              <div 
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  padding: '4px',
+                  boxSizing: 'border-box'
+                }}
+                onDoubleClick={handleDescriptionDoubleClick}
+              >
+                <p 
+                  style={{ 
+                    margin: 0,
+                    fontSize: '12px', 
+                    color: '#6B7280', 
+                    textAlign: 'center',
+                    fontStyle: 'italic',
+                    lineHeight: '1.3',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word',
+                    cursor: 'pointer',
+                    userSelect: 'none'
+                  }}
                 >
-                  <p 
-                    style={{ 
-                      margin: 0,
-                      fontSize: '12px', 
-                      color: '#6B7280', 
-                      textAlign: 'center',
-                      fontStyle: 'italic',
-                      lineHeight: '1.3',
-                      wordWrap: 'break-word',
-                      overflowWrap: 'break-word',
-                      cursor: 'pointer',
-                      userSelect: 'none'
-                    }}
-                  >
-                    {displayText}
-                  </p>
-                </div>
-              </foreignObject>
-            )}
-          </>
-        );
-      })()}
+                  {descriptionLayout.displayText}
+                </p>
+              </div>
+            </foreignObject>
+          )}
+        </>
+      )}
 
       {/* Delete button when selected */}
       {isSelected && (
