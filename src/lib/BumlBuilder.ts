@@ -11,6 +11,7 @@ import {
   Message,
   Activation,
   ActivationBlockData,
+  Group,
 } from '@/types/diagram';
 
 // Interface for the diagram builder
@@ -19,6 +20,7 @@ interface IDiagramBuilder {
   addLifeline(lifeline: Lifeline): IDiagramBuilder;
   addMessage(message: Message): IDiagramBuilder;
   addActivation(activation: Activation): IDiagramBuilder;
+  addGroup(group: Group): IDiagramBuilder;
   setActivatedBlocks(blocks: string[]): IDiagramBuilder;
   setActivatedBlocksData(blocksData: Record<string, ActivationBlockData>): IDiagramBuilder;
   build(): BumlDiagram;
@@ -33,7 +35,7 @@ export interface BumlDiagram {
 }
 
 // File format version for future compatibility
-export const BUML_VERSION = '1.1';
+export const BUML_VERSION = '1.2';
 
 // Documentation for coding agents
 export interface BumlDocumentation {
@@ -44,6 +46,7 @@ export interface BumlDocumentation {
     activations: string;
     activatedBlocks: string;
     activatedBlocksData?: string;
+    groups?: string;
   };
   usage: string;
 }
@@ -58,6 +61,7 @@ export interface BumlFileFormat {
     activations: Activation[];
     activatedBlocks: string[];
     activatedBlocksData?: Record<string, ActivationBlockData>;
+    groups?: Group[];
   };
   metadata: {
     createdAt: string;
@@ -76,6 +80,7 @@ export class BumlBuilder implements IDiagramBuilder {
   private activations: Activation[] = [];
   private activatedBlocks: string[] = [];
   private activatedBlocksData: Record<string, ActivationBlockData> = {};
+  private groups: Group[] = [];
 
   constructor() {
     this.reset();
@@ -90,6 +95,7 @@ export class BumlBuilder implements IDiagramBuilder {
     this.activations = [];
     this.activatedBlocks = [];
     this.activatedBlocksData = {};
+    this.groups = [];
   }
 
   /**
@@ -113,6 +119,14 @@ export class BumlBuilder implements IDiagramBuilder {
    */
   addActivation(activation: Activation): IDiagramBuilder {
     this.activations.push(activation);
+    return this;
+  }
+
+  /**
+   * Adds a group to the diagram
+   */
+  addGroup(group: Group): IDiagramBuilder {
+    this.groups.push(group);
     return this;
   }
 
@@ -141,6 +155,7 @@ export class BumlBuilder implements IDiagramBuilder {
         lifelines: [...this.lifelines],
         messages: [...this.messages],
         activations: [...this.activations],
+        groups: [...this.groups],
       },
       activatedBlocks: [...this.activatedBlocks],
       activatedBlocksData: { ...this.activatedBlocksData },
@@ -197,6 +212,13 @@ export class BumlDirector {
       this.builder.addActivation(activation);
     }
 
+    // Add all groups
+    if (fileContent.diagram.groups) {
+      for (const group of fileContent.diagram.groups) {
+        this.builder.addGroup(group);
+      }
+    }
+
     // Set activated blocks (legacy format)
     this.builder.setActivatedBlocks(fileContent.diagram.activatedBlocks);
 
@@ -230,6 +252,11 @@ export class BumlDirector {
     // Add all activations
     for (const activation of state.activations) {
       this.builder.addActivation(activation);
+    }
+
+    // Add all groups
+    for (const group of state.groups) {
+      this.builder.addGroup(group);
     }
 
     // Set activated blocks (convert Map to arrays/object)
@@ -282,12 +309,17 @@ export function serializeToBuml(
         activatedBlocksData:
           'Object mapping block keys to their data including isActive status and optional text label. ' +
           'The text property allows adding descriptive text to display on active blocks.',
+        groups:
+          'Array of groups that visually group adjacent lifelines together. Each group has: ' +
+          'id (unique identifier), name (display label), color (background color for the group box), ' +
+          'and lifelineIds (array of lifeline IDs that belong to this group).',
       },
       usage:
         'To recreate this diagram: 1) Create lifelines in order, ' +
         '2) Draw messages between them following the order sequence, ' +
         '3) Activate blocks between message pairs as specified, ' +
-        '4) Add text labels to activated blocks using activatedBlocksData. ' +
+        '4) Add text labels to activated blocks using activatedBlocksData, ' +
+        '5) Create groups to visually organize related lifelines. ' +
         'The visual layout flows left-to-right for lifelines and top-to-bottom for time/messages.',
     },
     diagram: {
@@ -296,6 +328,7 @@ export function serializeToBuml(
       activations: state.activations,
       activatedBlocks: blockKeys,
       activatedBlocksData: blockData,
+      groups: state.groups,
     },
     metadata: {
       createdAt: now,
@@ -347,6 +380,11 @@ export function parseBumlFile(content: string): BumlFileFormat {
   // Handle activatedBlocksData (new format)
   if (!parsed.diagram.activatedBlocksData || typeof parsed.diagram.activatedBlocksData !== 'object') {
     parsed.diagram.activatedBlocksData = {};
+  }
+
+  // Handle groups (new in v1.2)
+  if (!Array.isArray(parsed.diagram.groups)) {
+    parsed.diagram.groups = [];
   }
 
   // Validate metadata

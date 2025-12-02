@@ -10,6 +10,9 @@ interface SequenceToolbarProps {
   messageType: MessageType;
   onToggleAddMessageMode: (type: MessageType) => void;
   addMessageModeMessage: string;
+  isAddGroupMode: boolean;
+  onToggleAddGroupMode: () => void;
+  addGroupModeMessage: string;
   onClearAll: () => void;
   onSave: () => void;
   onLoad: () => void;
@@ -24,6 +27,9 @@ export default function SequenceToolbar({
   messageType,
   onToggleAddMessageMode,
   addMessageModeMessage,
+  isAddGroupMode,
+  onToggleAddGroupMode,
+  addGroupModeMessage,
   onClearAll,
   onSave,
   onLoad,
@@ -103,6 +109,34 @@ export default function SequenceToolbar({
       {isAddMessageMode && (
         <span className="text-violet-600 font-medium text-sm">
           {addMessageModeMessage}
+        </span>
+      )}
+      
+      <div className="h-8 w-px bg-gray-300" />
+
+      {/* Add Group */}
+      <div className="flex items-center gap-2">
+        <button
+          className={`px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            isAddGroupMode
+              ? 'bg-teal-600 text-white hover:bg-teal-700'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+          onClick={onToggleAddGroupMode}
+          title="Create a group by selecting adjacent actors"
+        >
+          <svg className="w-5 h-4" viewBox="0 0 24 16" fill="none">
+            <rect x="2" y="2" width="20" height="12" rx="2" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray={isAddGroupMode ? "0" : "4,2"} />
+            <rect x="6" y="5" width="5" height="6" rx="1" fill="currentColor" opacity="0.5" />
+            <rect x="13" y="5" width="5" height="6" rx="1" fill="currentColor" opacity="0.5" />
+          </svg>
+          Group
+        </button>
+      </div>
+
+      {isAddGroupMode && (
+        <span className="text-teal-600 font-medium text-sm">
+          {addGroupModeMessage}
         </span>
       )}
       

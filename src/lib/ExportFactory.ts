@@ -7,6 +7,7 @@ import {
   SequenceDiagramState,
   Lifeline,
   ActivationBlockData,
+  Group,
   LIFELINE_HEADER_WIDTH,
   LIFELINE_HEADER_HEIGHT,
   LIFELINE_SPACING,
@@ -50,6 +51,36 @@ const TEXT_BOX_WIDTH = 80;
 const TEXT_BOX_HEIGHT = 20;
 const TEXT_BOX_OFFSET_X = 20;
 const TEXT_PADDING = 8;
+
+// Group box layout constants
+const GROUP_PADDING = 20;
+const GROUP_HEADER_HEIGHT = 24;
+const GROUP_BORDER_RADIUS = 8;
+
+/**
+ * Calculate group bounds based on lifelines in the group
+ */
+function calculateGroupBounds(
+  group: Group,
+  lifelines: Lifeline[],
+  canvasHeight: number
+): { x: number; y: number; width: number; height: number } | null {
+  const groupLifelines = lifelines.filter((l) => group.lifelineIds.includes(l.id));
+  if (groupLifelines.length === 0) return null;
+
+  // Get min and max order positions
+  const orders = groupLifelines.map((l) => l.order).sort((a, b) => a - b);
+  const minOrder = orders[0];
+  const maxOrder = orders[orders.length - 1];
+
+  // Calculate bounds
+  const x = LIFELINE_START_X + minOrder * LIFELINE_SPACING - GROUP_PADDING;
+  const y = LIFELINE_START_Y - GROUP_HEADER_HEIGHT - GROUP_PADDING / 2;
+  const width = (maxOrder - minOrder + 1) * LIFELINE_SPACING - LIFELINE_SPACING + LIFELINE_HEADER_WIDTH + GROUP_PADDING * 2;
+  const height = canvasHeight - y - GROUP_PADDING;
+
+  return { x, y, width, height };
+}
 
 /**
  * PNG Exporter - Exports diagram as PNG image using canvas-based rendering
@@ -105,6 +136,36 @@ class PDFExporter implements IExporter {
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
+
+      // Draw groups (background boxes behind lifelines)
+      if (state.groups) {
+        state.groups.forEach((group) => {
+          const bounds = calculateGroupBounds(group, state.lifelines, canvasHeight);
+          if (!bounds) return;
+
+          // Draw group background
+          ctx.fillStyle = group.color;
+          ctx.globalAlpha = 0.5;
+          this.roundRect(ctx, bounds.x, bounds.y, bounds.width, bounds.height, GROUP_BORDER_RADIUS);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+
+          // Draw group border
+          ctx.strokeStyle = group.color;
+          ctx.lineWidth = 2;
+          this.roundRect(ctx, bounds.x, bounds.y, bounds.width, bounds.height, GROUP_BORDER_RADIUS);
+          ctx.stroke();
+
+          // Draw group name
+          if (group.name) {
+            ctx.fillStyle = '#374151';
+            ctx.font = '600 14px system-ui, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(group.name, bounds.x + 12, bounds.y + GROUP_HEADER_HEIGHT / 2 + 4);
+          }
+        });
+      }
 
       // Draw lifeline dashed lines
       state.lifelines.forEach((lifeline) => {
