@@ -354,6 +354,9 @@ export default function SequenceDiagramCanvas() {
         } else {
           showNotification('Groups can only contain adjacent actors. Please select actors that are next to each other.', 'error');
         }
+      } else if (groupSelectedLifelineIds.length === 1) {
+        // User tried to create a group with only one actor
+        showNotification('A group requires at least 2 adjacent actors. Please select one more actor.', 'error');
       }
       setIsAddGroupMode(false);
       setGroupSelectedLifelineIds([]);
