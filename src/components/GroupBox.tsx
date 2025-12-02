@@ -4,17 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Group,
   Lifeline,
-  LIFELINE_HEADER_WIDTH,
-  LIFELINE_SPACING,
-  LIFELINE_START_X,
-  LIFELINE_START_Y,
   DEFAULT_GROUP_COLORS,
 } from '@/types/diagram';
-
-// Group box layout constants
-const GROUP_PADDING = 20;
-const GROUP_HEADER_HEIGHT = 24;
-const GROUP_BORDER_RADIUS = 8;
+import { calculateGroupBounds, GROUP_HEADER_HEIGHT, GROUP_BORDER_RADIUS } from '@/lib/groupUtils';
 
 interface GroupBoxProps {
   group: Group;
@@ -24,31 +16,6 @@ interface GroupBoxProps {
   onSelect: (id: string) => void;
   onUpdate: (group: Group) => void;
   onDelete: (id: string) => void;
-}
-
-/**
- * Calculate group bounds based on lifelines in the group
- */
-function calculateGroupBounds(
-  group: Group,
-  lifelines: Lifeline[],
-  canvasHeight: number
-): { x: number; y: number; width: number; height: number } | null {
-  const groupLifelines = lifelines.filter((l) => group.lifelineIds.includes(l.id));
-  if (groupLifelines.length === 0) return null;
-
-  // Get min and max order positions
-  const orders = groupLifelines.map((l) => l.order).sort((a, b) => a - b);
-  const minOrder = orders[0];
-  const maxOrder = orders[orders.length - 1];
-
-  // Calculate bounds
-  const x = LIFELINE_START_X + minOrder * LIFELINE_SPACING - GROUP_PADDING;
-  const y = LIFELINE_START_Y - GROUP_HEADER_HEIGHT - GROUP_PADDING / 2;
-  const width = (maxOrder - minOrder + 1) * LIFELINE_SPACING - LIFELINE_SPACING + LIFELINE_HEADER_WIDTH + GROUP_PADDING * 2;
-  const height = canvasHeight - y - GROUP_PADDING;
-
-  return { x, y, width, height };
 }
 
 export default function GroupBox({
@@ -148,6 +115,7 @@ export default function GroupBox({
             onChange={(e) => setEditName(e.target.value)}
             onBlur={handleNameBlur}
             onKeyDown={handleKeyDown}
+            aria-label="Edit group name"
             className="w-full h-full text-sm font-semibold bg-white/90 text-gray-800 outline-none border-2 border-blue-500 rounded px-2"
             onClick={(e) => e.stopPropagation()}
           />
@@ -169,7 +137,17 @@ export default function GroupBox({
             e.stopPropagation();
             onDelete(group.id);
           }}
-          className="cursor-pointer"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete(group.id);
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label={`Delete group ${group.name}`}
+          className="cursor-pointer focus:outline-none"
         >
           <circle
             cx={bounds.x + bounds.width - 12}
@@ -199,22 +177,29 @@ export default function GroupBox({
           <div 
             style={{ display: 'flex', gap: '4px', alignItems: 'center' }}
             onClick={(e) => e.stopPropagation()}
+            role="group"
+            aria-label="Group color options"
           >
-            {DEFAULT_GROUP_COLORS.map((color) => (
-              <button
-                key={color}
-                onClick={() => handleColorChange(color)}
-                style={{
-                  width: '16px',
-                  height: '16px',
-                  borderRadius: '50%',
-                  backgroundColor: color,
-                  border: color === group.color ? '2px solid #374151' : '1px solid #9CA3AF',
-                  cursor: 'pointer',
-                }}
-                title={`Change to ${color}`}
-              />
-            ))}
+            {DEFAULT_GROUP_COLORS.map((color, index) => {
+              const colorNames = ['Light Blue', 'Light Emerald', 'Light Amber', 'Light Red', 'Light Violet', 'Light Pink', 'Light Teal', 'Light Indigo'];
+              return (
+                <button
+                  key={color}
+                  onClick={() => handleColorChange(color)}
+                  aria-label={`Change group color to ${colorNames[index]}`}
+                  aria-pressed={color === group.color}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    backgroundColor: color,
+                    border: color === group.color ? '2px solid #374151' : '1px solid #9CA3AF',
+                    cursor: 'pointer',
+                  }}
+                  title={`Change to ${colorNames[index]}`}
+                />
+              );
+            })}
           </div>
         </foreignObject>
       )}
