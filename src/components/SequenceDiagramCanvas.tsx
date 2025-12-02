@@ -4,8 +4,10 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   Lifeline,
   Message,
+  Group,
   ActivationBlockData,
   DEFAULT_COLORS,
+  DEFAULT_GROUP_COLORS,
   LIFELINE_HEADER_WIDTH,
   LIFELINE_HEADER_HEIGHT,
   LIFELINE_SPACING,
@@ -16,6 +18,7 @@ import {
 import LifelineHeader from './LifelineHeader';
 import MessageArrow from './MessageArrow';
 import ActivationBar from './ActivationBar';
+import GroupBox from './GroupBox';
 import SequenceToolbar from './SequenceToolbar';
 import { serializeToBuml, buildDiagramFromBuml } from '@/lib/BumlBuilder';
 import { ExportFactory } from '@/lib/ExportFactory';
@@ -59,13 +62,19 @@ function getBlockKey(block: ActivationBlock): string {
 export default function SequenceDiagramCanvas() {
   const [lifelines, setLifelines] = useState<Lifeline[]>(INITIAL_LIFELINES);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   // Track which blocks are activated using a Map of block keys to block data (includes text)
   const [activatedBlocks, setActivatedBlocks] = useState<Map<string, ActivationBlockData>>(new Map());
   const [selectedLifelineId, setSelectedLifelineId] = useState<string | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isAddMessageMode, setIsAddMessageMode] = useState(false);
   const [messageFromLifeline, setMessageFromLifeline] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<'sync' | 'return'>('sync');
+  
+  // Group creation mode state
+  const [isAddGroupMode, setIsAddGroupMode] = useState(false);
+  const [groupSelectedLifelineIds, setGroupSelectedLifelineIds] = useState<string[]>([]);
   
   // File input ref for loading .buml files
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,7 +120,16 @@ export default function SequenceDiagramCanvas() {
   // Select lifeline
   const handleSelectLifeline = useCallback(
     (id: string) => {
-      if (isAddMessageMode) {
+      if (isAddGroupMode) {
+        // Toggle lifeline selection for group creation
+        setGroupSelectedLifelineIds((prev) => {
+          if (prev.includes(id)) {
+            return prev.filter((lid) => lid !== id);
+          } else {
+            return [...prev, id];
+          }
+        });
+      } else if (isAddMessageMode) {
         if (!messageFromLifeline) {
           setMessageFromLifeline(id);
         } else if (messageFromLifeline !== id) {
@@ -131,9 +149,10 @@ export default function SequenceDiagramCanvas() {
       } else {
         setSelectedLifelineId(id);
         setSelectedMessageId(null);
+        setSelectedGroupId(null);
       }
     },
-    [isAddMessageMode, messageFromLifeline, messageType, messages.length]
+    [isAddGroupMode, isAddMessageMode, messageFromLifeline, messageType, messages.length]
   );
 
   // Update lifeline
@@ -162,6 +181,13 @@ export default function SequenceDiagramCanvas() {
       });
       return newMap;
     });
+    // Remove lifeline from any groups
+    setGroups((prev) =>
+      prev.map((g) => ({
+        ...g,
+        lifelineIds: g.lifelineIds.filter((lid) => lid !== id),
+      })).filter((g) => g.lifelineIds.length > 0) // Remove groups with no lifelines
+    );
     setSelectedLifelineId(null);
   }, []);
 
@@ -205,6 +231,7 @@ export default function SequenceDiagramCanvas() {
   const handleSelectMessage = useCallback((id: string) => {
     setSelectedMessageId(id);
     setSelectedLifelineId(null);
+    setSelectedGroupId(null);
   }, []);
 
   // Update message
@@ -288,15 +315,86 @@ export default function SequenceDiagramCanvas() {
       setIsAddMessageMode(true);
       setMessageType(type);
       setMessageFromLifeline(null);
+      // Exit group mode if active
+      setIsAddGroupMode(false);
+      setGroupSelectedLifelineIds([]);
     }
     setSelectedLifelineId(null);
     setSelectedMessageId(null);
+    setSelectedGroupId(null);
   }, [isAddMessageMode, messageType]);
+
+  // Toggle add group mode
+  const handleToggleAddGroupMode = useCallback(() => {
+    if (isAddGroupMode) {
+      // If we have selected lifelines, create the group
+      if (groupSelectedLifelineIds.length >= 2) {
+        // Sort by order and check if they are adjacent
+        const selectedLifelines = lifelines
+          .filter((l) => groupSelectedLifelineIds.includes(l.id))
+          .sort((a, b) => a.order - b.order);
+        
+        // Check adjacency: the orders should be consecutive
+        let isAdjacent = true;
+        for (let i = 0; i < selectedLifelines.length - 1; i++) {
+          if (selectedLifelines[i + 1].order - selectedLifelines[i].order !== 1) {
+            isAdjacent = false;
+            break;
+          }
+        }
+
+        if (isAdjacent) {
+          const newGroup: Group = {
+            id: generateId('group'),
+            name: 'Group',
+            color: DEFAULT_GROUP_COLORS[groups.length % DEFAULT_GROUP_COLORS.length],
+            lifelineIds: selectedLifelines.map((l) => l.id),
+          };
+          setGroups((prev) => [...prev, newGroup]);
+        } else {
+          showNotification('Groups can only contain adjacent actors. Please select actors that are next to each other.', 'error');
+        }
+      } else if (groupSelectedLifelineIds.length === 1) {
+        // User tried to create a group with only one actor
+        showNotification('A group requires at least 2 adjacent actors. Please select one more actor.', 'error');
+      }
+      setIsAddGroupMode(false);
+      setGroupSelectedLifelineIds([]);
+    } else {
+      setIsAddGroupMode(true);
+      setGroupSelectedLifelineIds([]);
+      // Exit message mode if active
+      setIsAddMessageMode(false);
+      setMessageFromLifeline(null);
+    }
+    setSelectedLifelineId(null);
+    setSelectedMessageId(null);
+    setSelectedGroupId(null);
+  }, [isAddGroupMode, groupSelectedLifelineIds, lifelines, groups.length, showNotification]);
+
+  // Select group
+  const handleSelectGroup = useCallback((id: string) => {
+    setSelectedGroupId(id);
+    setSelectedLifelineId(null);
+    setSelectedMessageId(null);
+  }, []);
+
+  // Update group
+  const handleUpdateGroup = useCallback((updated: Group) => {
+    setGroups((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
+  }, []);
+
+  // Delete group
+  const handleDeleteGroup = useCallback((id: string) => {
+    setGroups((prev) => prev.filter((g) => g.id !== id));
+    setSelectedGroupId(null);
+  }, []);
 
   // Canvas click handler
   const handleCanvasClick = useCallback(() => {
     setSelectedLifelineId(null);
     setSelectedMessageId(null);
+    setSelectedGroupId(null);
     if (isAddMessageMode && messageFromLifeline) {
       setMessageFromLifeline(null);
     }
@@ -311,18 +409,22 @@ export default function SequenceDiagramCanvas() {
   const handleClearAll = useCallback(() => {
     setLifelines([]);
     setMessages([]);
+    setGroups([]);
     setActivatedBlocks(new Map());
     setDiagramName('Untitled Diagram');
     setSelectedLifelineId(null);
     setSelectedMessageId(null);
+    setSelectedGroupId(null);
     setIsAddMessageMode(false);
     setMessageFromLifeline(null);
+    setIsAddGroupMode(false);
+    setGroupSelectedLifelineIds([]);
   }, []);
 
   // Save diagram to .buml file
   const handleSave = useCallback(() => {
     const content = serializeToBuml(
-      { lifelines, messages, activations: [] },
+      { lifelines, messages, activations: [], groups },
       activatedBlocks,
       diagramName
     );
@@ -338,7 +440,7 @@ export default function SequenceDiagramCanvas() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [lifelines, messages, activatedBlocks, diagramName, getSanitizedFileName]);
+  }, [lifelines, messages, groups, activatedBlocks, diagramName, getSanitizedFileName]);
 
   // Load diagram from .buml file
   const handleLoad = useCallback(() => {
@@ -358,6 +460,7 @@ export default function SequenceDiagramCanvas() {
         
         setLifelines(diagram.state.lifelines);
         setMessages(diagram.state.messages);
+        setGroups(diagram.state.groups || []);
         // Convert activatedBlocksData to Map with type validation
         const blocksMap = new Map<string, ActivationBlockData>();
         if (diagram.activatedBlocksData) {
@@ -378,8 +481,11 @@ export default function SequenceDiagramCanvas() {
         setDiagramName(nameFromFile);
         setSelectedLifelineId(null);
         setSelectedMessageId(null);
+        setSelectedGroupId(null);
         setIsAddMessageMode(false);
         setMessageFromLifeline(null);
+        setIsAddGroupMode(false);
+        setGroupSelectedLifelineIds([]);
         showNotification('Diagram loaded successfully!', 'success');
       } catch (error) {
         showNotification('Failed to load diagram: ' + (error instanceof Error ? error.message : 'Invalid file'), 'error');
@@ -397,7 +503,7 @@ export default function SequenceDiagramCanvas() {
     
     const result = await ExportFactory.exportDiagram(
       'pdf',
-      { lifelines, messages, activations: [] },
+      { lifelines, messages, activations: [], groups },
       activatedBlocks,
       sanitizedName
     );
@@ -407,7 +513,7 @@ export default function SequenceDiagramCanvas() {
     } else {
       showNotification('Diagram exported successfully!', 'success');
     }
-  }, [lifelines, messages, activatedBlocks, diagramName, getSanitizedFileName, showNotification]);
+  }, [lifelines, messages, groups, activatedBlocks, diagramName, getSanitizedFileName, showNotification]);
 
   // Get add message mode status message
   const getAddMessageModeMessage = () => {
@@ -416,6 +522,19 @@ export default function SequenceDiagramCanvas() {
     if (!messageFromLifeline) return `Click source lifeline for ${typeLabel}`;
     const fromLifeline = lifelines.find((l) => l.id === messageFromLifeline);
     return `From "${fromLifeline?.name}" - Click destination lifeline`;
+  };
+
+  // Get add group mode status message
+  const getAddGroupModeMessage = () => {
+    if (!isAddGroupMode) return '';
+    if (groupSelectedLifelineIds.length === 0) {
+      return 'Click actors to select them for the group';
+    }
+    const selectedCount = groupSelectedLifelineIds.length;
+    if (selectedCount === 1) {
+      return 'Select at least one more adjacent actor, then click "Group" again to create';
+    }
+    return `${selectedCount} actors selected - Click "Group" again to create or select more`;
   };
 
   return (
@@ -450,6 +569,9 @@ export default function SequenceDiagramCanvas() {
         messageType={messageType}
         onToggleAddMessageMode={handleToggleAddMessageMode}
         addMessageModeMessage={getAddMessageModeMessage()}
+        isAddGroupMode={isAddGroupMode}
+        onToggleAddGroupMode={handleToggleAddGroupMode}
+        addGroupModeMessage={getAddGroupModeMessage()}
         onClearAll={handleClearAll}
         onSave={handleSave}
         onLoad={handleLoad}
@@ -468,6 +590,20 @@ export default function SequenceDiagramCanvas() {
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
+
+          {/* Groups (background boxes) */}
+          {groups.map((group) => (
+            <GroupBox
+              key={group.id}
+              group={group}
+              lifelines={lifelines}
+              canvasHeight={canvasHeight}
+              isSelected={selectedGroupId === group.id}
+              onSelect={handleSelectGroup}
+              onUpdate={handleUpdateGroup}
+              onDelete={handleDeleteGroup}
+            />
+          ))}
 
           {/* Lifeline dashed lines */}
           {lifelines.map((lifeline) => {
@@ -533,7 +669,7 @@ export default function SequenceDiagramCanvas() {
               lifeline={lifeline}
               x={LIFELINE_START_X + lifeline.order * LIFELINE_SPACING}
               y={LIFELINE_START_Y}
-              isSelected={selectedLifelineId === lifeline.id || messageFromLifeline === lifeline.id}
+              isSelected={selectedLifelineId === lifeline.id || messageFromLifeline === lifeline.id || groupSelectedLifelineIds.includes(lifeline.id)}
               canMoveLeft={lifeline.order > 0}
               canMoveRight={lifeline.order < lifelines.length - 1}
               onSelect={handleSelectLifeline}
@@ -558,7 +694,7 @@ export default function SequenceDiagramCanvas() {
 
       {/* Help text */}
       <div className="mt-4 text-center text-gray-600 text-sm">
-        <span className="font-medium">Tips:</span> Double-click actors to rename • Use &quot;Add Message&quot; buttons to draw arrows • Click between two arrows to toggle activation • Double-click activation text to add labels • Use arrow buttons to reorder actors
+        <span className="font-medium">Tips:</span> Double-click actors to rename • Use &quot;Add Message&quot; buttons to draw arrows • Click between two arrows to toggle activation • Double-click activation text to add labels • Use arrow buttons to reorder actors • Use &quot;Group&quot; to group adjacent actors
       </div>
     </div>
   );

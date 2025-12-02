@@ -34,10 +34,19 @@ export interface ActivationBlockData {
   text?: string; // Optional text to display on the activation bar
 }
 
+// Group - visual grouping of lifelines (layer/component group)
+export interface Group {
+  id: string;
+  name: string;
+  color: string; // Background color for the group box
+  lifelineIds: string[]; // IDs of lifelines in this group
+}
+
 export interface SequenceDiagramState {
   lifelines: Lifeline[];
   messages: Message[];
   activations: Activation[];
+  groups: Group[];
 }
 
 export const DEFAULT_COLORS = [
@@ -49,6 +58,18 @@ export const DEFAULT_COLORS = [
   '#EC4899', // Pink
   '#14B8A6', // Teal
   '#6366F1', // Indigo
+];
+
+// Default colors for groups (lighter/more pastel for background)
+export const DEFAULT_GROUP_COLORS = [
+  '#DBEAFE', // Light Blue
+  '#D1FAE5', // Light Emerald
+  '#FEF3C7', // Light Amber
+  '#FEE2E2', // Light Red
+  '#EDE9FE', // Light Violet
+  '#FCE7F3', // Light Pink
+  '#CCFBF1', // Light Teal
+  '#E0E7FF', // Light Indigo
 ];
 
 // Sequence diagram layout constants

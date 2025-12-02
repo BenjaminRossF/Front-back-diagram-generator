@@ -15,6 +15,7 @@ import {
   MESSAGE_SPACING,
   ACTIVATION_WIDTH,
 } from '@/types/diagram';
+import { calculateGroupBounds, GROUP_HEADER_HEIGHT, GROUP_BORDER_RADIUS } from '@/lib/groupUtils';
 
 // Export format types
 export type ExportFormat = 'pdf';
@@ -105,6 +106,36 @@ class PDFExporter implements IExporter {
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
+
+      // Draw groups (background boxes behind lifelines)
+      if (state.groups) {
+        state.groups.forEach((group) => {
+          const bounds = calculateGroupBounds(group, state.lifelines, canvasHeight);
+          if (!bounds) return;
+
+          // Draw group background
+          ctx.fillStyle = group.color;
+          ctx.globalAlpha = 0.5;
+          this.roundRect(ctx, bounds.x, bounds.y, bounds.width, bounds.height, GROUP_BORDER_RADIUS);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+
+          // Draw group border
+          ctx.strokeStyle = group.color;
+          ctx.lineWidth = 2;
+          this.roundRect(ctx, bounds.x, bounds.y, bounds.width, bounds.height, GROUP_BORDER_RADIUS);
+          ctx.stroke();
+
+          // Draw group name
+          if (group.name) {
+            ctx.fillStyle = '#374151';
+            ctx.font = '600 14px system-ui, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(group.name, bounds.x + 12, bounds.y + GROUP_HEADER_HEIGHT / 2 + 4);
+          }
+        });
+      }
 
       // Draw lifeline dashed lines
       state.lifelines.forEach((lifeline) => {
